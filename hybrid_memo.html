@@ -28,6 +28,19 @@
   /* ==== フォルダ ==== */
   .folder-header{display:flex;align-items:center;padding:10px;cursor:pointer;background:#e9e9e9;font-weight:bold;font-size:14px;user-select:none}
   .folder-header.drag-over{outline:2px dashed #5ab85a;background:#e8ffe8}
+
+  /* ← 追加: フォルダ並べ替えの上下ガイド */
+  .folder-header.drag-over-top{
+    outline:2px dashed #5ab85a;
+    box-shadow:0 -3px 0 0 #5ab85a inset;
+    background:#f1fff1;
+  }
+  .folder-header.drag-over-bottom{
+    outline:2px dashed #5ab85a;
+    box-shadow:0 3px 0 0 #5ab85a inset;
+    background:#f1fff1;
+  }
+
   .folder-toggle{margin-right:8px;transition:.2s;display:inline-block;width:12px}
   .folder-container[data-is-open="false"] .folder-toggle{transform:rotate(-90deg)}
   .folder-header .folder-name{margin-left:8px;flex:1}
@@ -254,11 +267,62 @@
         renderSidebar(); saveDataToLocalStorage();
       });
 
-      // ★ ヘッダーにドロップ対応（閉じていても入れられる）
-      header.addEventListener('dragover', e=>{ e.preventDefault(); header.classList.add('drag-over'); e.dataTransfer.dropEffect='move'; });
-      header.addEventListener('dragleave', ()=> header.classList.remove('drag-over'));
+      // === DnD: フォルダ並べ替え & ノート移動の両立 ===
+      header.draggable = true;
+
+      // フォルダをドラッグ開始（並べ替え用）
+      header.addEventListener('dragstart', e=>{
+        e.dataTransfer.setData('text/folder-id', folder.id);
+        e.dataTransfer.effectAllowed='move';
+      });
+
+      // dragover: フォルダ↔フォルダ か ノート↔フォルダ かで見た目を出し分け
+      header.addEventListener('dragover', e=>{
+        e.preventDefault();
+        const types = Array.from(e.dataTransfer.types || []);
+        if (types.includes('text/folder-id')) {
+          const rect = header.getBoundingClientRect();
+          const isTop = (e.clientY - rect.top) < rect.height/2;
+          header.classList.toggle('drag-over-top', isTop);
+          header.classList.toggle('drag-over-bottom', !isTop);
+          header.classList.remove('drag-over'); // ノート用クラスは外す
+        } else {
+          header.classList.add('drag-over');    // ノート移動のハイライト
+          header.classList.remove('drag-over-top','drag-over-bottom');
+        }
+        e.dataTransfer.dropEffect='move';
+      });
+
+      header.addEventListener('dragleave', ()=>{
+        header.classList.remove('drag-over','drag-over-top','drag-over-bottom');
+      });
+
+      // drop: フォルダなら並べ替え、ノートなら移動
       header.addEventListener('drop', e=>{
-        e.preventDefault(); header.classList.remove('drag-over');
+        e.preventDefault();
+        header.classList.remove('drag-over','drag-over-top','drag-over-bottom');
+
+        // 1) フォルダの並べ替え
+        const draggedFolderId = e.dataTransfer.getData('text/folder-id');
+        if (draggedFolderId) {
+          if (draggedFolderId === folder.id) return; // 自分自身には落とさない
+          const fromIndex = folders.findIndex(f=>f.id===draggedFolderId);
+          if (fromIndex < 0) return;
+
+          const dragged = folders.splice(fromIndex,1)[0]; // いったん抜く
+          // ここでターゲットの位置を「抜いた後」で再取得
+          const rect = header.getBoundingClientRect();
+          const insertBefore = (e.clientY - rect.top) < rect.height/2;
+          let targetIndex = folders.findIndex(f=>f.id===folder.id);
+          if (!insertBefore) targetIndex++;
+          folders.splice(targetIndex, 0, dragged);
+
+          renderSidebar();
+          saveDataToLocalStorage();
+          return;
+        }
+
+        // 2) ノートの移動（ヘッダーへドロップでフォルダに入れる）
         const noteId = e.dataTransfer.getData('text/plain');
         const n = notes.find(x=>x.id===noteId);
         if(n){ n.folderId = folder.id; saveDataToLocalStorage(); renderSidebar(); }
@@ -266,9 +330,9 @@
 
       container.appendChild(header);
 
+      // 中身リスト（開いている時のみ表示）にもドロップ受け取り（ノート移動）
       const folderNotes = document.createElement('div');
       folderNotes.className='folder-notes';
-      // 中身リストにもドロップ受け取り
       folderNotes.addEventListener('dragover', e=>{ e.preventDefault(); folderNotes.classList.add('drag-over'); e.dataTransfer.dropEffect='move'; });
       folderNotes.addEventListener('dragleave', ()=> folderNotes.classList.remove('drag-over'));
       folderNotes.addEventListener('drop', e=>{
@@ -298,7 +362,7 @@
     if(note.id===currentNoteIds.main) el.classList.add('active');
     el.dataset.id = note.id;
 
-    // ドラッグ設定
+    // ドラッグ設定（ノートの移動）
     el.draggable = true;
     el.addEventListener('dragstart', e=>{
       e.dataTransfer.setData('text/plain', note.id);
@@ -361,7 +425,7 @@
     document.getElementById('header-wordcount').textContent = `文字数: ${content.length}`;
   }
 
-  /* ====== ルート戻しドロップ ====== */
+  /* ====== ルート戻しドロップ（ノート） ====== */
   function setupRootDrop(){
     const root = document.getElementById('root-drop-area');
     root.addEventListener('dragover', e=>{ e.preventDefault(); root.classList.add('drag-over'); e.dataTransfer.dropEffect='move'; });
@@ -490,19 +554,6 @@
   document.getElementById('export-modal').addEventListener('click', (e)=>{ if(e.target.id==='export-modal') closeModal('export-modal'); });
   document.getElementById('export-all-button').addEventListener('click', ()=>{ exportAll(); closeModal('export-modal'); });
   document.getElementById('export-current-button').addEventListener('click', ()=>{ exportCurrent(); closeModal('export-modal'); });
-
-  // ルート戻し
-  function setupRootDrop(){
-    const root = document.getElementById('root-drop-area');
-    root.addEventListener('dragover', e=>{ e.preventDefault(); root.classList.add('drag-over'); e.dataTransfer.dropEffect='move'; });
-    root.addEventListener('dragleave', ()=> root.classList.remove('drag-over'));
-    root.addEventListener('drop', e=>{
-      e.preventDefault(); root.classList.remove('drag-over');
-      const noteId = e.dataTransfer.getData('text/plain');
-      const n = notes.find(x=>x.id===noteId);
-      if(n){ n.folderId = null; saveDataToLocalStorage(); renderSidebar(); }
-    });
-  }
 
   // 初期化
   window.addEventListener('DOMContentLoaded', ()=>{
