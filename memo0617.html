@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>UserNote</title>
+<style>
+  html,body{margin:0;padding:0;height:100%;width:100%;overflow:hidden;font-family:sans-serif;display:flex;flex-direction:column}
+  #app-container{flex-grow:1;display:flex;flex-direction:column;height:100%}
+
+  /* ==== ヘッダー（スリム） ==== */
+  #menu-bar{height:40px;background:#e0e0e0;border-bottom:1px solid #ccc;display:flex;align-items:center;padding:0 8px;gap:8px;white-space:nowrap;overflow-x:auto}
+  #menu-bar button{padding:5px 10px;cursor:pointer}
+  #header-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+  #header-wordcount{font-size:13px;opacity:.9}
+
+  /* 文字サイズ */
+  #font-size-slider-container{display:flex;align-items:center;gap:6px}
+  #font-size-slider{width:120px}
+
+  /* ==== レイアウト ==== */
+  #main-content{flex-grow:1;display:flex;overflow:hidden}
+  #sidebar{width:260px;min-width:150px;max-width:520px;background:#f4f4f4;border-right:1px solid #ddd;display:flex;flex-direction:column;resize:horizontal;overflow:auto}
+  #sidebar-header{padding:6px;border-bottom:1px solid #ddd;display:flex;gap:6px}
+  #note-list{flex-grow:1;overflow:auto}
+  .folder-container,.note-item{border-bottom:1px solid #eee}
+
+  /* ==== フォルダ ==== */
+  .folder-header{display:flex;align-items:center;padding:10px;cursor:pointer;background:#e9e9e9;font-weight:bold;font-size:14px;user-select:none}
+  .folder-header.drag-over{outline:2px dashed #5ab85a;background:#e8ffe8}
+  .folder-toggle{margin-right:8px;transition:.2s;display:inline-block;width:12px}
+  .folder-container[data-is-open="false"] .folder-toggle{transform:rotate(-90deg)}
+  .folder-header .folder-name{margin-left:8px;flex:1}
+  .folder-rename-btn,.folder-delete-btn{margin-left:5px;padding:2px 6px;cursor:pointer;border:none;background:none;font-size:14px;opacity:.6}
+  .folder-rename-btn:hover,.folder-delete-btn:hover{opacity:1;background:#ffcccc;border-radius:4px}
+  .folder-notes{padding-left:20px;min-height:5px}
+  .folder-notes.drag-over{background:#e0f0ff}
+  .folder-container[data-is-open="false"] .folder-notes{display:none}
+
+  /* ==== メモ ==== */
+  .note-item{padding:10px 10px 10px 15px;display:flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;-webkit-user-drag:element}
+  .note-item:hover{background:#e9e9e9}
+  .note-item.active{background:#d0d0d0;font-weight:bold}
+  .delete-button{margin-left:auto;padding:2px 6px;border-radius:4px;font-size:14px;visibility:hidden;opacity:.6}
+  .note-item:hover .delete-button{visibility:visible}
+  .delete-button:hover{opacity:1;background:#ffcccc}
+
+  /* ==== 右ペイン ==== */
+  #editor-area-container{flex-grow:1;display:flex;flex-direction:column;overflow:hidden}
+  .note-title-input{width:100%;padding:10px 15px;border:none;border-bottom:1px solid #ddd;font-size:20px;font-weight:bold;box-sizing:border-box;outline:none;background:#fff}
+  #note-editor{flex-grow:1;width:100%;padding:15px;border:none;outline:none;resize:none;box-sizing:border-box;font-size:16px;line-height:1.6;overflow:auto;white-space:pre-wrap;word-wrap:break-word}
+
+  /* ==== ステータスバー ==== */
+  #status-bar{height:25px;background:#e0e0e0;border-top:1px solid #ccc;display:flex;align-items:center;padding:0 10px;font-size:12px;gap:8px}
+  #status-bar span{margin-right:12px}
+
+  /* ==== ルート戻しドロップ領域 ==== */
+  .root-drop-area{padding:8px 10px;min-height:16px;border-top:1px dashed #ccc;background:#fafafa;position:sticky;bottom:0}
+  .root-drop-area.drag-over{background:#e8ffe8;outline:1px dashed #5ab85a}
+
+  /* ==== モーダル（共通） ==== */
+  .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:50}
+  .modal{background:#fff;width:min(520px,90vw);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.2);padding:14px 14px 10px}
+  .modal header{font-weight:bold;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+  .modal .close-btn{border:none;background:none;font-size:20px;cursor:pointer;opacity:.7}
+  .modal .close-btn:hover{opacity:1}
+
+  /* 検索置換モーダル */
+  .modal .row{display:flex;gap:8px;margin:8px 0}
+  .modal input[type="text"]{flex:1;padding:8px 10px;border:1px solid #ccc;border-radius:6px;font-size:14px}
+  .modal .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
+  .modal .actions button{padding:6px 10px;cursor:pointer}
+  .modal .opts{display:flex;gap:12px;align-items:center;font-size:13px;color:#333}
+  .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, monospace;background:#f6f6f6;border:1px solid #ddd;border-bottom-width:2px;border-radius:4px;padding:1px 4px;font-size:12px}
+
+  /* エクスポートモーダル */
+  .export-options{display:grid;grid-template-columns:1fr;gap:10px}
+  .export-options button{padding:10px 12px;font-size:14px;cursor:pointer;text-align:left;border:1px solid #ddd;border-radius:8px;background:#fafafa}
+  .export-options button:hover{background:#f0f0f0}
+</style>
+</head>
+<body>
+  <div id="app-container">
+    <div id="menu-bar">
+      <button id="new-note-button">新規メモ</button>
+      <button id="delete-note-button">削除</button>
+      <button id="save-button">保存</button>
+
+      <!-- 検索置換をポップアップで -->
+      <button id="open-find-dialog">検索/置換</button>
+
+      <!-- エクスポート（モーダルを開く） -->
+      <button id="open-export-dialog">エクスポート</button>
+
+      <div id="header-right">
+        <div id="font-size-slider-container">
+          <span>文字:</span>
+          <input type="range" id="font-size-slider" min="10" max="30" value="16">
+          <span id="font-size-value">16px</span>
+        </div>
+        <span id="header-wordcount">文字数: 0</span>
+      </div>
+    </div>
+
+    <div id="main-content">
+      <div id="sidebar">
+        <div id="sidebar-header">
+          <button id="new-folder-button" style="flex:1">新規フォルダ</button>
+        </div>
+        <div id="note-list"></div>
+        <!-- ルート戻し -->
+        <div id="root-drop-area" class="root-drop-area" title="ここにドロップでフォルダから外す">↩ ルートへ戻す（ドラッグ＆ドロップ）</div>
+      </div>
+
+      <div id="editor-area-container">
+        <input type="text" id="note-title-input" class="note-title-input" placeholder="タイトル">
+        <textarea id="note-editor" placeholder="ここにメモを書きます..."></textarea>
+      </div>
+    </div>
+
+    <div id="status-bar">
+      <span id="status-save">保存状態: -</span> | 
+      <span id="status-mode">モード: 標準</span>
+      <span style="margin-left:auto">ショートカット: <span class="kbd">Ctrl/⌘</span>+<span class="kbd">F</span> で検索</span>
+    </div>
+  </div>
+
+  <!-- 検索置換モーダル -->
+  <div id="find-modal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="find-modal-title">
+      <header>
+        <div id="find-modal-title">検索 / 置換</div>
+        <button class="close-btn" id="find-close" aria-label="閉じる">×</button>
+      </header>
+      <div class="row"><input id="find-text" type="text" placeholder="検索語"></div>
+      <div class="row"><input id="replace-text" type="text" placeholder="置換語（空なら置換しない）"></div>
+      <div class="opts">
+        <label><input type="checkbox" id="regex-mode"> 正規表現</label>
+        <label><input type="checkbox" id="match-case"> 大文字小文字を区別</label>
+      </div>
+      <div class="actions">
+        <button id="find-next-button">次を検索</button>
+        <button id="replace-all-button">すべて置換</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- エクスポートモーダル -->
+  <div id="export-modal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="export-modal-title">
+      <header>
+        <div id="export-modal-title">エクスポート</div>
+        <button class="close-btn" id="export-close" aria-label="閉じる">×</button>
+      </header>
+      <div class="export-options">
+        <button id="export-all-button">📦 全体エクスポート（JSON）</button>
+        <button id="export-current-button">📝 現在のメモ（.txt）</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  /* ====== 状態 ====== */
+  let notes = [];
+  let folders = [];
+  let uiState = { openFolderIds: [] };
+  let currentNoteIds = { main: null };
+  let lastFindIndex = -1; // 検索位置
+
+  /* ====== ユーティリティ ====== */
+  function createNote(content = '', title = '新規メモ', folderId = null) {
+    const id = Date.now().toString() + Math.random().toString(36).slice(2,7);
+    return { id, title, content, folderId, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+  }
+  function createFolder(name) {
+    const id = 'folder-' + Date.now().toString() + Math.random().toString(36).slice(2,7);
+    return { id, name };
+  }
+
+  function updateSaveStatus(text){ document.getElementById('status-save').textContent = '保存状態: ' + text; }
+  function saveDataToLocalStorage() {
+    saveCurrentNoteContent();
+    try {
+      localStorage.setItem('usernote-app-data', JSON.stringify({notes, folders, uiState}));
+      updateSaveStatus('保存済み');
+    } catch(e){ console.error(e); updateSaveStatus('保存エラー'); }
+  }
+  function loadDataFromLocalStorage() {
+    try {
+      const raw = localStorage.getItem('usernote-app-data');
+      if(raw){
+        const data = JSON.parse(raw);
+        notes = data.notes || [];
+        folders = data.folders || [];
+        uiState = data.uiState || { openFolderIds: [] };
+      }
+    } catch(e){ console.error(e); notes=[]; folders=[]; uiState={openFolderIds:[]}; }
+  }
+
+  /* ====== サイドバー描画 & DnD ====== */
+  function renderSidebar() {
+    const noteList = document.getElementById('note-list');
+    noteList.innerHTML = '';
+
+    // フォルダ
+    folders.forEach(folder=>{
+      const isOpen = uiState.openFolderIds.includes(folder.id);
+      const container = document.createElement('div');
+      container.className='folder-container';
+      container.dataset.folderId = folder.id;
+      container.dataset.isOpen = isOpen;
+
+      const header = document.createElement('div');
+      header.className='folder-header';
+
+      const toggle = document.createElement('span');
+      toggle.className='folder-toggle';
+      toggle.textContent='▼';
+      header.appendChild(toggle);
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className='folder-name';
+      nameSpan.textContent = folder.name;
+      header.appendChild(nameSpan);
+
+      const renameBtn = document.createElement('button');
+      renameBtn.className='folder-rename-btn';
+      renameBtn.textContent='✎';
+      renameBtn.title='フォルダ名変更';
+      renameBtn.onclick = e=>{
+        e.stopPropagation();
+        const nv = prompt('新しいフォルダ名:', folder.name);
+        if(nv && nv.trim()){ folder.name = nv.trim(); renderSidebar(); saveDataToLocalStorage(); }
+      };
+      header.appendChild(renameBtn);
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className='folder-delete-btn';
+      deleteBtn.textContent='🗑';
+      deleteBtn.title='フォルダ削除';
+      deleteBtn.onclick = e=>{
+        e.stopPropagation();
+        if(!confirm('このフォルダを削除しますか？中のメモはルートに移動されます。')) return;
+        notes.forEach(n=>{ if(n.folderId===folder.id) n.folderId=null; });
+        folders = folders.filter(f=>f.id!==folder.id);
+        renderSidebar(); saveDataToLocalStorage();
+      };
+      header.appendChild(deleteBtn);
+
+      // 開閉（クリック）
+      header.addEventListener('click', ()=>{
+        const i = uiState.openFolderIds.indexOf(folder.id);
+        if(i>-1) uiState.openFolderIds.splice(i,1); else uiState.openFolderIds.push(folder.id);
+        renderSidebar(); saveDataToLocalStorage();
+      });
+
+      // ★ ヘッダーにドロップ対応（閉じていても入れられる）
+      header.addEventListener('dragover', e=>{ e.preventDefault(); header.classList.add('drag-over'); e.dataTransfer.dropEffect='move'; });
+      header.addEventListener('dragleave', ()=> header.classList.remove('drag-over'));
+      header.addEventListener('drop', e=>{
+        e.preventDefault(); header.classList.remove('drag-over');
+        const noteId = e.dataTransfer.getData('text/plain');
+        const n = notes.find(x=>x.id===noteId);
+        if(n){ n.folderId = folder.id; saveDataToLocalStorage(); renderSidebar(); }
+      });
+
+      container.appendChild(header);
+
+      const folderNotes = document.createElement('div');
+      folderNotes.className='folder-notes';
+      // 中身リストにもドロップ受け取り
+      folderNotes.addEventListener('dragover', e=>{ e.preventDefault(); folderNotes.classList.add('drag-over'); e.dataTransfer.dropEffect='move'; });
+      folderNotes.addEventListener('dragleave', ()=> folderNotes.classList.remove('drag-over'));
+      folderNotes.addEventListener('drop', e=>{
+        e.preventDefault(); folderNotes.classList.remove('drag-over');
+        const noteId = e.dataTransfer.getData('text/plain');
+        const n = notes.find(x=>x.id===noteId);
+        if(n){ n.folderId = folder.id; saveDataToLocalStorage(); renderSidebar(); }
+      });
+
+      const inFolder = notes.filter(n=>n.folderId===folder.id);
+      inFolder.forEach(n=> folderNotes.appendChild(createNoteItemElement(n)));
+      container.appendChild(folderNotes);
+
+      noteList.appendChild(container);
+    });
+
+    // ルートのメモ（フォルダ外）
+    const rootList = document.createElement('div');
+    const roots = notes.filter(n=>!n.folderId);
+    roots.forEach(n=> rootList.appendChild(createNoteItemElement(n)));
+    noteList.appendChild(rootList);
+  }
+
+  function createNoteItemElement(note){
+    const el = document.createElement('div');
+    el.className='note-item';
+    if(note.id===currentNoteIds.main) el.classList.add('active');
+    el.dataset.id = note.id;
+
+    // ドラッグ設定
+    el.draggable = true;
+    el.addEventListener('dragstart', e=>{
+      e.dataTransfer.setData('text/plain', note.id);
+      e.dataTransfer.effectAllowed='move';
+    });
+
+    const title = document.createElement('span');
+    title.textContent = note.title || '無題';
+    el.appendChild(title);
+
+    const del = document.createElement('span');
+    del.className='delete-button';
+    del.innerHTML='🗑';
+    del.title='メモを削除';
+    del.onclick = e=>{ e.stopPropagation(); deleteNote(note.id); };
+    el.appendChild(del);
+
+    el.onclick = ()=> loadNoteIntoPane(note.id);
+    return el;
+  }
+
+  function deleteNote(id){
+    if(!confirm('このメモを完全に削除しますか？')) return;
+    notes = notes.filter(n=>n.id!==id);
+    if(currentNoteIds.main===id) {
+      currentNoteIds.main=null;
+      document.getElementById('note-title-input').value='';
+      document.getElementById('note-editor').value='';
+    }
+    renderSidebar(); saveDataToLocalStorage(); updateStatusBar();
+  }
+
+  function createNewNote(){
+    const n = createNote();
+    notes.unshift(n);
+    renderSidebar(); loadNoteIntoPane(n.id); saveDataToLocalStorage();
+  }
+
+  function loadNoteIntoPane(id){
+    const n = notes.find(x=>x.id===id); if(!n) return;
+    currentNoteIds.main=id;
+    document.getElementById('note-title-input').value = n.title;
+    document.getElementById('note-editor').value = n.content;
+    updateStatusBar(); renderSidebar();
+  }
+
+  function saveCurrentNoteContent(){
+    const id = currentNoteIds.main; if(!id) return;
+    const n = notes.find(x=>x.id===id); if(!n) return;
+    const title = document.getElementById('note-title-input').value.trim() || '無題';
+    const content = document.getElementById('note-editor').value;
+    if(n.title!==title || n.content!==content){
+      n.title = title; n.content = content; n.updatedAt = new Date().toISOString();
+      renderSidebar(); // タイトルの反映
+    }
+  }
+
+  function updateStatusBar(){
+    const content = document.getElementById('note-editor').value || '';
+    document.getElementById('header-wordcount').textContent = `文字数: ${content.length}`;
+  }
+
+  /* ====== ルート戻しドロップ ====== */
+  function setupRootDrop(){
+    const root = document.getElementById('root-drop-area');
+    root.addEventListener('dragover', e=>{ e.preventDefault(); root.classList.add('drag-over'); e.dataTransfer.dropEffect='move'; });
+    root.addEventListener('dragleave', ()=> root.classList.remove('drag-over'));
+    root.addEventListener('drop', e=>{
+      e.preventDefault(); root.classList.remove('drag-over');
+      const noteId = e.dataTransfer.getData('text/plain');
+      const n = notes.find(x=>x.id===noteId);
+      if(n){ n.folderId = null; saveDataToLocalStorage(); renderSidebar(); }
+    });
+  }
+
+  /* ====== エクスポート ====== */
+  function downloadBlob(filename, text){
+    const blob = new Blob([text], {type:'application/octet-stream'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = filename;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 0);
+  }
+  function exportAll(){
+    const data = { notes, folders, uiState };
+    downloadBlob(`UserNote_all_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.json`, JSON.stringify(data,null,2));
+  }
+  function exportCurrent(){
+    const id = currentNoteIds.main; if(!id){ alert('メモが選択されていません'); return; }
+    const n = notes.find(x=>x.id===id); if(!n){ alert('メモが見つかりません'); return; }
+    const name = (n.title||'memo').replace(/[\\/:*?"<>|]/g,'_').slice(0,60) || 'memo';
+    downloadBlob(`${name}.txt`, n.content||'');
+  }
+
+  /* ====== 検索・置換（ポップアップ） ====== */
+  function openModal(id){ const m=document.getElementById(id); m.style.display='flex'; m.setAttribute('aria-hidden','false'); }
+  function closeModal(id){ const m=document.getElementById(id); m.style.display='none'; m.setAttribute('aria-hidden','true'); }
+
+  function openFindDialog(){ openModal('find-modal'); setTimeout(()=> document.getElementById('find-text').focus(), 0); }
+  function findNext(){
+    const editor = document.getElementById('note-editor');
+    const text = editor.value;
+    const query = document.getElementById('find-text').value;
+    const isRegex = document.getElementById('regex-mode').checked;
+    const matchCase = document.getElementById('match-case').checked;
+    if(!query){ return; }
+    let flags = 'g'; if(!matchCase) flags += 'i';
+    let regex;
+    try{ regex = isRegex ? new RegExp(query, flags) : new RegExp(escapeRegExp(query), flags); }
+    catch(e){ alert('正規表現が不正です'); return; }
+    const startPos = editor.selectionEnd ?? 0;
+    regex.lastIndex = startPos;
+    const m = regex.exec(text) || (regex.lastIndex=0, regex.exec(text));
+    if(m){ selectRange(editor, m.index, m.index + m[0].length); lastFindIndex = m.index + m[0].length; }
+    else{ alert('見つかりませんでした'); }
+  }
+  function replaceAll(){
+    const editor = document.getElementById('note-editor');
+    const query = document.getElementById('find-text').value;
+    const repl  = document.getElementById('replace-text').value;
+    const isRegex = document.getElementById('regex-mode').checked;
+    const matchCase = document.getElementById('match-case').checked;
+    if(!query){ return; }
+    const src = editor.value;
+    let flags = 'g'; if(!matchCase) flags += 'i';
+    try{
+      const regex = isRegex ? new RegExp(query, flags) : new RegExp(escapeRegExp(query), flags);
+      const replaced = src.replace(regex, repl);
+      if(replaced !== src){
+        editor.value = replaced;
+        saveCurrentNoteContent();
+        updateStatusBar();
+        saveDataToLocalStorage();
+        alert('置換しました');
+      }else{
+        alert('置換対象がありませんでした');
+      }
+    }catch(e){ alert('正規表現が不正です'); }
+  }
+  function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+  function selectRange(textarea, start, end){
+    textarea.focus();
+    textarea.setSelectionRange(start, end);
+    const before = textarea.value.slice(0, start);
+    const line = before.split('\n').length;
+    const lineHeight = 20;
+    textarea.scrollTop = (line-1) * lineHeight - textarea.clientHeight/3;
+  }
+
+  /* ====== イベント登録 ====== */
+  document.getElementById('new-note-button').addEventListener('click', createNewNote);
+  document.getElementById('new-folder-button').addEventListener('click', ()=>{
+    const name = prompt('新しいフォルダ名:'); if(name && name.trim()){ folders.push(createFolder(name.trim())); renderSidebar(); saveDataToLocalStorage(); }
+  });
+  document.getElementById('save-button').addEventListener('click', saveDataToLocalStorage);
+  document.getElementById('delete-note-button').addEventListener('click', ()=>{
+    const id = currentNoteIds.main; if(!id) return alert('メモが選択されていません');
+    deleteNote(id);
+  });
+
+  document.getElementById('note-editor').addEventListener('input', ()=>{ saveCurrentNoteContent(); updateStatusBar(); saveDataToLocalStorage(); });
+  document.getElementById('note-title-input').addEventListener('input', ()=>{ saveCurrentNoteContent(); saveDataToLocalStorage(); });
+
+  // 文字サイズ
+  const fontSlider = document.getElementById('font-size-slider');
+  const fontValue  = document.getElementById('font-size-value');
+  fontSlider.addEventListener('input', ()=>{
+    document.getElementById('note-editor').style.fontSize = fontSlider.value + 'px';
+    fontValue.textContent = fontSlider.value + 'px';
+  });
+
+  // 検索モーダル
+  document.getElementById('open-find-dialog').addEventListener('click', openFindDialog);
+  document.getElementById('find-close').addEventListener('click', ()=> closeModal('find-modal'));
+  document.getElementById('find-modal').addEventListener('click', (e)=>{ if(e.target.id==='find-modal') closeModal('find-modal'); });
+  document.getElementById('find-next-button').addEventListener('click', findNext);
+  document.getElementById('replace-all-button').addEventListener('click', replaceAll);
+  // Ctrl/⌘+F で開く
+  document.addEventListener('keydown', (e)=>{
+    const isMac = navigator.platform.toUpperCase().includes('Mac'.toUpperCase());
+    if((isMac ? e.metaKey : e.ctrlKey) && e.key.toLowerCase()==='f'){
+      e.preventDefault(); openFindDialog();
+    }
+  });
+
+  // エクスポートモーダル
+  document.getElementById('open-export-dialog').addEventListener('click', ()=> openModal('export-modal'));
+  document.getElementById('export-close').addEventListener('click', ()=> closeModal('export-modal'));
+  document.getElementById('export-modal').addEventListener('click', (e)=>{ if(e.target.id==='export-modal') closeModal('export-modal'); });
+  document.getElementById('export-all-button').addEventListener('click', ()=>{ exportAll(); closeModal('export-modal'); });
+  document.getElementById('export-current-button').addEventListener('click', ()=>{ exportCurrent(); closeModal('export-modal'); });
+
+  // ルート戻し
+  function setupRootDrop(){
+    const root = document.getElementById('root-drop-area');
+    root.addEventListener('dragover', e=>{ e.preventDefault(); root.classList.add('drag-over'); e.dataTransfer.dropEffect='move'; });
+    root.addEventListener('dragleave', ()=> root.classList.remove('drag-over'));
+    root.addEventListener('drop', e=>{
+      e.preventDefault(); root.classList.remove('drag-over');
+      const noteId = e.dataTransfer.getData('text/plain');
+      const n = notes.find(x=>x.id===noteId);
+      if(n){ n.folderId = null; saveDataToLocalStorage(); renderSidebar(); }
+    });
+  }
+
+  // 初期化
+  window.addEventListener('DOMContentLoaded', ()=>{
+    loadDataFromLocalStorage();
+    renderSidebar();
+    setupRootDrop();
+    updateStatusBar();
+  });
+</script>
+</body>
+</html>
