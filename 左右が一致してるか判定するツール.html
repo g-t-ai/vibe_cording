@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>左右入力の一致判定ツール</title>
+<style>
+  :root{
+    --bg:#0f172a;           /* slate-900 */
+    --panel:#111827;        /* gray-900 */
+    --muted:#64748b;        /* slate-500 */
+    --text:#e5e7eb;         /* gray-200 */
+    --accent:#22d3ee;       /* cyan-400 */
+    --ok:#10b981;           /* emerald-500 */
+    --ng:#ef4444;           /* red-500 */
+    --border:#1f2937;       /* gray-800 */
+    --card:#0b1220;         /* custom */
+    --shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Noto Sans JP, "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+    color:var(--text);
+    background: radial-gradient(1200px 800px at 70% -10%, #1f2937 0%, rgba(31,41,55,0) 60%) , var(--bg);
+  }
+  .wrap{max-width:1100px;margin:32px auto;padding:0 16px}
+  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:16px}
+  h1{
+    font-size: clamp(20px, 2.6vw, 28px);
+    margin:0;
+    letter-spacing:.02em;
+    display:flex;align-items:center;gap:.6rem;
+  }
+  h1 .dot{display:inline-block;width:.6em;height:.6em;border-radius:999px;background:linear-gradient(135deg,var(--accent),#8b5cf6)}
+  .card{
+    background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+    border:1px solid var(--border);
+    border-radius:16px;
+    box-shadow: var(--shadow);
+    overflow:hidden;
+  }
+  .toolbar{
+    display:flex;flex-wrap:wrap;gap:12px;
+    padding:14px 16px;border-bottom:1px solid var(--border);
+    background:rgba(255,255,255,.02);
+  }
+  .tool{
+    display:flex;align-items:center;gap:8px;
+    background:rgba(255,255,255,.03);
+    border:1px solid var(--border);
+    padding:8px 10px;border-radius:12px;
+    font-size:14px;color:var(--text);
+  }
+  .tool input[type="checkbox"]{transform: translateY(1px)}
+  .grid{
+    display:grid;grid-template-columns:1fr 1fr;gap:0;border-bottom:1px solid var(--border);
+  }
+  .pane{
+    display:flex;flex-direction:column;min-height:260px;border-right:1px solid var(--border);
+  }
+  .pane:last-child{border-right:none}
+  .pane header{
+    margin:0;padding:10px 12px;border-bottom:1px solid var(--border);
+    background:rgba(255,255,255,.02);gap:8px
+  }
+  .pane header span{color:var(--muted);font-size:12px}
+  textarea{
+    flex:1;resize:vertical;min-height:220px;
+    padding:14px 12px;background:transparent;border:0;color:var(--text);
+    font: 14px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    outline:none;
+  }
+  .actions{
+    display:flex;justify-content:space-between;align-items:center;gap:12px;
+    padding:12px 16px;background:rgba(255,255,255,.02);
+  }
+  button{
+    cursor:pointer;
+    background: linear-gradient(135deg, var(--accent), #8b5cf6);
+    color:white;border:none;border-radius:12px;padding:10px 14px;font-weight:600;
+    box-shadow: 0 6px 20px rgba(34,211,238,.25);
+  }
+  button.secondary{
+    background:transparent;border:1px solid var(--border);color:var(--text);box-shadow:none
+  }
+  .status{
+    display:flex;align-items:center;gap:10px;font-weight:700;
+  }
+  .badge{
+    padding:4px 8px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:.03em
+  }
+  .ok{background:rgba(16,185,129,.15);color:#a7f3d0;border:1px solid rgba(16,185,129,.35)}
+  .ng{background:rgba(239,68,68,.15);color:#fecaca;border:1px solid rgba(239,68,68,.35)}
+  .meta{color:var(--muted);font-size:12px}
+  .result{
+    padding:14px 16px;
+  }
+  .diff{
+    margin-top:8px;
+    background:rgba(239,68,68,.08);
+    border:1px dashed rgba(239,68,68,.4);
+    padding:10px 12px;border-radius:10px;font-size:13px;color:#fecaca
+  }
+  .hint{color:var(--muted);font-size:12px;margin-top:6px}
+  .counts{display:flex;gap:14px;color:var(--muted);font-size:12px}
+  .kbd{
+    display:inline-block;border:1px solid var(--border);border-bottom-width:2px;border-radius:6px;padding:0 6px;background:rgba(255,255,255,.04);font-weight:600
+  }
+  @media (max-width:840px){
+    .grid{grid-template-columns:1fr}
+    .pane{min-height:180px}
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1><span class="dot"></span> 左右入力の一致判定</h1>
+      <div class="counts" id="counts"></div>
+    </header>
+
+    <div class="card" role="group" aria-label="左右入力の比較">
+      <div class="toolbar" aria-label="比較オプション">
+        <label class="tool"><input type="checkbox" id="optCase" checked> 大文字小文字を区別する</label>
+        <label class="tool"><input type="checkbox" id="optTrim" checked> 前後の空白をトリム</label>
+        <label class="tool"><input type="checkbox" id="optSpace"> すべての空白を無視</label>
+      </div>
+
+      <div class="grid">
+        <section class="pane" aria-label="左側入力">
+          <header>
+            <strong>左</strong><span id="lenL">0 文字</span>
+          </header>
+          <textarea id="left" placeholder="こちらに入力..."></textarea>
+        </section>
+
+        <section class="pane" aria-label="右側入力">
+          <header>
+            <strong>右</strong><span id="lenR">0 文字</span>
+          </header>
+          <textarea id="right" placeholder="こちらに入力..."></textarea>
+        </section>
+      </div>
+
+      <div class="actions">
+        <div class="status" id="status">
+          <span class="badge ng">未比較</span>
+          <span class="meta">入力すると自動で比較します（手動比較は <span class="kbd">Ctrl</span> + <span class="kbd">Enter</span>）。</span>
+        </div>
+        <div>
+          <button id="compare">比較する</button>
+          <button class="secondary" id="clear">クリア</button>
+        </div>
+      </div>
+
+      <div class="result" id="result" aria-live="polite"></div>
+    </div>
+
+    <p class="hint">※「すべての空白を無視」は、空白・改行・タブなどを全削除してから比較します。</p>
+  </div>
+
+<script>
+(function(){
+  const $ = (sel) => document.querySelector(sel);
+  const left = $('#left'), right = $('#right');
+  const lenL = $('#lenL'), lenR = $('#lenR');
+  const counts = $('#counts');
+  const status = $('#status');
+  const result = $('#result');
+  const optCase = $('#optCase');
+  const optTrim = $('#optTrim');
+  const optSpace = $('#optSpace');
+  const btnCompare = $('#compare');
+  const btnClear = $('#clear');
+
+  function normalize(s){
+    let t = s;
+    if(optTrim.checked){ t = t.trim(); }
+    if(optSpace.checked){ t = t.replace(/\s+/g, ''); }
+    // ここで将来的に正規化ルールを拡張してもOK
+    if(!optCase.checked){ t = t.toLowerCase(); }
+    return t;
+  }
+
+  function firstDiffIndex(a,b){
+    const m = Math.min(a.length, b.length);
+    for(let i=0;i<m;i++){
+      if(a[i] !== b[i]) return i;
+    }
+    return (a.length === b.length) ? -1 : m;
+  }
+
+  function formatAround(s, idx, radius=8){
+    const start = Math.max(0, idx - radius);
+    const end = Math.min(s.length, idx + radius + 1);
+    const left = (start>0 ? '…' : '') + s.slice(start, idx);
+    const ch = s[idx] ?? '';
+    const right = (idx+1<end ? s.slice(idx+1, end) : '') + (end<s.length ? '…' : '');
+    // 可視化：スペースと改行をわかりやすく
+    const v = (t)=> t.replaceAll(' ', '·').replaceAll('\n','⏎\n').replaceAll('\t','⇥');
+    return v(left) + '<mark style="background:#fbbf24;color:#111;padding:0 2px;border-radius:4px;">' + v(ch || '∅') + '</mark>' + v(right);
+  }
+
+  function updateCounts(){
+    lenL.textContent = `${left.value.length} 文字`;
+    lenR.textContent = `${right.value.length} 文字`;
+    counts.textContent = `左 ${left.value.length} / 右 ${right.value.length}`;
+  }
+
+  function setBadge(ok){
+    const badge = status.querySelector('.badge');
+    badge.className = 'badge ' + (ok ? 'ok' : 'ng');
+    badge.textContent = ok ? '一致' : '不一致';
+  }
+
+  function compare(){
+    updateCounts();
+
+    const rawL = left.value;
+    const rawR = right.value;
+    const A = normalize(rawL);
+    const B = normalize(rawR);
+
+    const equal = (A === B);
+    setBadge(equal);
+
+    // 結果描画
+    if(equal){
+      result.innerHTML = `
+        <div class="meta">現在の設定で <strong>完全に一致</strong> しています。</div>
+      `;
+      return;
+    }
+
+    const idx = firstDiffIndex(A, B);
+    const pos = (idx === -1) ? '末尾の長さ違い' : `位置 ${idx}`;
+    const aMark = idx === -1 ? '' : formatAround(A, idx);
+    const bMark = idx === -1 ? '' : formatAround(B, idx);
+
+    result.innerHTML = `
+      <div class="meta">一致しません（${pos}）。</div>
+      ${ idx !== -1 ? `
+      <div class="diff">
+        <div style="margin-bottom:6px">差分（左・正規化後）：</div>
+        <div style="white-space:pre-wrap;word-break:break-word;">${aMark}</div>
+        <div style="margin:10px 0 6px">差分（右・正規化後）：</div>
+        <div style="white-space:pre-wrap;word-break:break-word;">${bMark}</div>
+      </div>
+      ` : `
+      <div class="diff">
+        <div>内容は同じですが、<strong>長さ</strong>が異なります（どちらかの末尾に余剰があります）。</div>
+      </div>
+      `}
+    `;
+  }
+
+  // イベント
+  [left, right, optCase, optTrim, optSpace].forEach(el=>{
+    el.addEventListener('input', compare);
+    el.addEventListener('change', compare);
+  });
+
+  btnCompare.addEventListener('click', compare);
+  document.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter' && (e.ctrlKey || e.metaKey)){
+      compare();
+    }
+  });
+
+  btnClear.addEventListener('click', ()=>{
+    left.value = '';
+    right.value = '';
+    result.innerHTML = '';
+    status.querySelector('.badge').className = 'badge ng';
+    status.querySelector('.badge').textContent = '未比較';
+    updateCounts();
+    left.focus();
+  });
+
+  // 初期化
+  updateCounts();
+})();
+</script>
+</body>
+</html>
