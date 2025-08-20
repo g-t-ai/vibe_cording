@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>vibe_cording メニュー</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 2em;
+    }
+    h1 {
+      color: #333;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    li {
+      margin: 1em 0;
+    }
+    a {
+      display: inline-block;
+      padding: 0.5em 1em;
+      background: #333;
+      color: #fff;
+      border-radius: 6px;
+      text-decoration: none;
+    }
+    a:hover {
+      background: #555;
+    }
+  </style>
+</head>
+<body>
+  <h1>vibe_cording メニュー</h1>
+  <ul>
+    <li><a href="hybrid_memo.html">hybrid_memo.html</a></li>
+    <li><a href="memo0617.html">memo0617.html</a></li>
+    <li><a href="左右が一致してるか判定するツール.html">左右が一致してるか判定するツール.html</a></li>
+  </ul>
+</body>
+</html>
