@@ -504,11 +504,57 @@
     });
   }
 
+  // エクセルからの貼り付け時にダブルクォートが2重になる問題を解決
+  function setupPasteHandler() {
+    const editor = document.getElementById('note-editor');
+    const titleInput = document.getElementById('note-title-input');
+    
+    function handlePaste(element) {
+      // 少し遅延させて、貼り付けが完了してから処理を実行
+      setTimeout(function() {
+        let text = '';
+        
+        // 要素の種類に応じてテキストを取得
+        if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+          text = element.value;
+        } else if (element.contentEditable === 'true') {
+          text = element.textContent || element.innerText;
+        }
+        
+        // ダブルクォートが2重になっている箇所を修正
+        if (text.includes('""')) {
+          const correctedText = text.replace(/""/g, '"');
+          
+          // 修正されたテキストを設定
+          if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+            element.value = correctedText;
+          } else if (element.contentEditable === 'true') {
+            element.textContent = correctedText;
+          }
+          
+          // 入力イベントを発火させて、他のスクリプトに変更を通知
+          const inputEvent = new Event('input', { bubbles: true });
+          element.dispatchEvent(inputEvent);
+        }
+      }, 10); // 10msの遅延
+    }
+    
+    // エディターとタイトル入力欄に貼り付けイベントリスナーを追加
+    editor.addEventListener('paste', function(e) {
+      handlePaste(editor);
+    });
+    
+    titleInput.addEventListener('paste', function(e) {
+      handlePaste(titleInput);
+    });
+  }
+
   // 初期化
   window.addEventListener('DOMContentLoaded', ()=>{
     loadDataFromLocalStorage();
     renderSidebar();
     setupRootDrop();
+    setupPasteHandler(); // 貼り付けハンドラーを設定
     updateStatusBar();
   });
 </script>
