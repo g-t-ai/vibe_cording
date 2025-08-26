@@ -557,6 +557,19 @@
     setupPasteHandler(); // 貼り付けハンドラーを設定
     updateStatusBar();
   });
+  
+  const editor = document.getElementById("note-editor");
+
+  // 入力中にタブを改行に変換
+  editor.addEventListener("input", () => {
+    const pos = editor.selectionStart;
+    editor.value = editor.value.replace(/\t/g, "\n");
+    editor.selectionEnd = pos;
+  });
+</script>
+</body>
+</html>
+
 </script>
 </body>
 </html>
