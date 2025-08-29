@@ -45,18 +45,17 @@
             border-radius: 10px;
             position: relative;
             word-break: break-word;
+            white-space: pre-wrap; /* 改行を反映 */
         }
         .customer .bubble {
             background-color: #e1f5fe;
             align-self: flex-start;
             border-left: 4px solid #0288d1;
-            position: relative;
         }
         .company .bubble {
             background-color: #c8e6c9;
             align-self: flex-end;
             border-right: 4px solid #388e3c;
-            position: relative;
         }
         .delete-btn {
             background: red;
@@ -69,6 +68,14 @@
             position: absolute;
             top: 5px;
             right: 5px;
+        }
+        .toggle-btn {
+            display: block;
+            margin-top: 5px;
+            color: blue;
+            cursor: pointer;
+            text-decoration: underline;
+            font-size: 12px;
         }
         .input-area {
             display: flex;
@@ -104,28 +111,53 @@
         function addMessage() {
             const sender = document.getElementById("sender").value;
             const messageText = document.getElementById("message").value.trim();
-            
             if (messageText === "") return;
-            
+
             const chatBox = document.getElementById("chatBox");
             const messageElement = document.createElement("div");
             messageElement.classList.add("message", sender);
-            
+
             const bubble = document.createElement("div");
             bubble.classList.add("bubble");
-            bubble.textContent = sender === "customer" ? "【お客様】\n" + messageText : "【弊社】\n" + messageText;
-            
+
+            // 改行ごとに分割して3行まで表示
+            const lines = messageText.split("\n");
+            const preview = lines.slice(0, 3).join("\n");
+            const full = messageText;
+
+            bubble.textContent = (sender === "customer" ? "【お客様】\n" : "【弊社】\n") + preview;
+
+            if (lines.length > 3) {
+                const toggle = document.createElement("span");
+                toggle.classList.add("toggle-btn");
+                toggle.textContent = "もっと見る";
+                toggle.onclick = function () {
+                    if (toggle.textContent === "もっと見る") {
+                        bubble.textContent = (sender === "customer" ? "【お客様】\n" : "【弊社】\n") + full;
+                        bubble.appendChild(deleteBtn);
+                        bubble.appendChild(toggle);
+                        toggle.textContent = "閉じる";
+                    } else {
+                        bubble.textContent = (sender === "customer" ? "【お客様】\n" : "【弊社】\n") + preview;
+                        bubble.appendChild(deleteBtn);
+                        bubble.appendChild(toggle);
+                        toggle.textContent = "もっと見る";
+                    }
+                };
+                bubble.appendChild(toggle);
+            }
+
             const deleteBtn = document.createElement("button");
             deleteBtn.classList.add("delete-btn");
             deleteBtn.textContent = "削除";
-            deleteBtn.onclick = function() {
+            deleteBtn.onclick = function () {
                 chatBox.removeChild(messageElement);
             };
-            
+
             bubble.appendChild(deleteBtn);
             messageElement.appendChild(bubble);
             chatBox.appendChild(messageElement);
-            
+
             document.getElementById("message").value = "";
             chatBox.scrollTop = chatBox.scrollHeight;
         }
