@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CS Helper – オフライン・ワンファイル工具箱</title>
+<style>
+  :root{--bg:#0f1220;--panel:#171a2b;--ink:#e8ecff;--muted:#aab1d9;--brand:#7aa2ff;--accent:#8bffcd;--warn:#ffd166;--bad:#ff6b6b;--ok:#6bff8e;}
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(180deg,#0e1120,#0a0d16);color:var(--ink);font:14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;}
+  header{padding:18px 16px;border-bottom:1px solid #2a2f49;background:rgba(23,26,43,.7);backdrop-filter: blur(8px);position:sticky;top:0;z-index:2}
+  h1{margin:0;font-size:18px;letter-spacing:.3px}
+  .sub{color:var(--muted);font-size:12px}
+  .wrap{padding:16px;max-width:1200px;margin:0 auto}
+  .tabs{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 16px}
+  .tabbtn{border:1px solid #2a2f49;background:#131626;color:var(--ink);padding:8px 12px;border-radius:12px;cursor:pointer;transition:.15s}
+  .tabbtn.active,.tabbtn:hover{border-color:var(--brand);box-shadow:0 0 0 2px rgba(122,162,255,.15) inset}
+  .panels{display:grid;gap:16px}
+  .panel{background:var(--panel);border:1px solid #262b45;border-radius:16px;padding:16px;display:none}
+  .panel.active{display:block}
+  h2{margin:0 0 12px;font-size:16px}
+  label{display:block;margin:8px 0 4px;color:var(--muted)}
+  textarea, input, select{width:100%;background:#0f1324;border:1px solid #2a2f49;color:var(--ink);padding:10px;border-radius:10px}
+  textarea{min-height:120px;resize:vertical}
+  .row{display:grid;gap:12px}
+  @media(min-width:760px){.row.cols-2{grid-template-columns:1fr 1fr}.row.cols-3{grid-template-columns:repeat(3,1fr)}}
+  .btn{display:inline-flex;align-items:center;gap:8px;border:1px solid #2a2f49;background:#101428;color:var(--ink);padding:8px 12px;border-radius:10px;cursor:pointer}
+  .btn.primary{border-color:var(--brand);background:rgba(122,162,255,.12)}
+  .btn.warn{border-color:var(--warn);background:rgba(255,209,102,.12)}
+  .btn.bad{border-color:var(--bad);background:rgba(255,107,107,.12)}
+  .fine{color:var(--ok)}
+  .muted{color:var(--muted)}
+  .stack{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+  .badge{border:1px solid #2a2f49;background:#101428;padding:2px 8px;border-radius:999px;font-size:12px}
+  .right{display:flex;gap:8px;justify-content:flex-end}
+  .small{font-size:12px}
+  .drop{border:1px dashed #2a2f49;padding:14px;border-radius:10px;text-align:center;background:#0f1324}
+  table{width:100%;border-collapse:collapse;margin-top:8px}
+  th,td{border:1px solid #2a2f49;padding:6px 8px;text-align:left}
+  th{background:#121731}
+  .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;background:#0b0f1f;border:1px solid #2a2f49;border-radius:6px;padding:2px 6px}
+</style>
+</head>
+<body>
+<header>
+  <h1>CS Helper <span class="sub">— 機密ゼロで業務を速くするツール群（ローカル保存のみ）</span></h1>
+</header>
+<div class="wrap">
+  <div class="tabs" id="tabs"></div>
+  <div class="panels">
+    <!-- Snippets -->
+    <section class="panel" data-panel="snip">
+      <h2>スニペット生成（変数展開）</h2>
+      <div class="row cols-2">
+        <div>
+          <label>テンプレート（例：こんにちは {{name}} 様。案件 {{caseId}} の件です。）</label>
+          <textarea id="tpl"></textarea>
+          <div class="stack">
+            <button class="btn" id="loadTpl">テンプレ読込</button>
+            <button class="btn primary" id="saveTpl">テンプレ保存</button>
+            <button class="btn warn" id="clearTpl">テンプレ削除</button>
+          </div>
+          <label class="small muted">テンプレ名</label>
+          <input id="tplName" placeholder="例：初回案内 / 進捗確認 など" />
+          <div class="small muted">保存先：ブラウザの <span class="kbd">localStorage</span>（機密は入れない）</div>
+        </div>
+        <div>
+          <label>変数（JSON）例：</label>
+          <textarea id="vars" placeholder='{"name":"山田","caseId":"CS-12345"}'></textarea>
+          <div class="stack">
+            <button class="btn" id="apply">→ 展開</button>
+            <button class="btn" id="copyOut">コピー</button>
+          </div>
+          <label>出力</label>
+          <textarea id="out" placeholder="ここに展開結果"></textarea>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLA -->
+    <section class="panel" data-panel="sla">
+      <h2>SLA 期日計算（平日 9–18時 / 祝日任意）</h2>
+      <div class="row cols-3">
+        <div>
+          <label>開始日時（JST）</label>
+          <input type="datetime-local" id="slaStart">
+        </div>
+        <div>
+          <label>SLA（営業時間換算の時間数）</label>
+          <input type="number" id="slaHours" min="0" step="0.5" value="8">
+        </div>
+        <div>
+          <label>祝日（カンマ区切り yyyy-mm-dd）</label>
+          <input id="holidays" placeholder="2025-01-01,2025-01-13">
+        </div>
+      </div>
+      <div class="stack">
+        <button class="btn primary" id="calcSLA">期日を計算</button>
+        <span class="small muted">営業時間：平日 09:00–18:00（昼休憩考慮なし）</span>
+      </div>
+      <div id="slaResult" class="badge"></div>
+    </section>
+
+    <!-- Timezones -->
+    <section class="panel" data-panel="tz">
+      <h2>時差変換</h2>
+      <div class="row cols-3">
+        <div>
+          <label>基準日時（Tokyo）</label>
+          <input type="datetime-local" id="tzBase">
+        </div>
+        <div>
+          <label>宛先タイムゾーン</label>
+          <select id="tzSelect"></select>
+        </div>
+        <div class="right">
+          <button class="btn" id="nowTz">現在時刻</button>
+          <button class="btn primary" id="convTz">変換</button>
+        </div>
+      </div>
+      <div id="tzOut" class="badge"></div>
+      <div class="small muted">よく使う：UTC / America/Los_Angeles / America/New_York / Europe/London / Europe/Berlin / Asia/Singapore / Australia/Sydney</div>
+    </section>
+
+    <!-- Encode -->
+    <section class="panel" data-panel="enc">
+      <h2>URL & Base64 ツール</h2>
+      <div class="row cols-2">
+        <div>
+          <label>入力</label>
+          <textarea id="encIn"></textarea>
+          <div class="stack">
+            <button class="btn" id="toURL">URLエンコード</button>
+            <button class="btn" id="fromURL">URLデコード</button>
+            <button class="btn" id="toB64">Base64エンコード</button>
+            <button class="btn" id="fromB64">Base64デコード</button>
+          </div>
+        </div>
+        <div>
+          <label>出力</label>
+          <textarea id="encOut"></textarea>
+          <div class="stack">
+            <button class="btn" id="copyEnc">コピー</button>
+            <button class="btn warn" id="swapEnc">入出力スワップ</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- JSON -->
+    <section class="panel" data-panel="json">
+      <h2>JSON 整形 / 検証</h2>
+      <div class="row cols-2">
+        <div>
+          <label>JSON 入力</label>
+          <textarea id="jsonIn" placeholder='{"hello":"world"}'></textarea>
+          <div class="stack">
+            <button class="btn primary" id="fmtJson">整形</button>
+            <button class="btn" id="minJson">最小化</button>
+            <button class="btn" id="valJson">検証</button>
+          </div>
+        </div>
+        <div>
+          <label>結果</label>
+          <textarea id="jsonOut"></textarea>
+          <div id="jsonMsg" class="small muted"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CSV -->
+    <section class="panel" data-panel="csv">
+      <h2>CSV ビューア（ドラッグ&ドロップ / 区切り選択）</h2>
+      <div class="row">
+        <div class="drop" id="drop">ここにCSVをドロップ / または選択<input type="file" id="csvFile" accept=".csv,text/csv" style="display:block;margin-top:8px"></div>
+        <div class="row cols-3">
+          <div>
+            <label>区切り文字</label>
+            <select id="csvSep">
+              <option value=",">,（カンマ）</option>
+              <option value=";">;（セミコロン）</option>
+              <option value="\t">タブ</option>
+              <option value="|">|（パイプ）</option>
+            </select>
+          </div>
+          <div>
+            <label>ヘッダーあり</label>
+            <select id="csvHeader">
+              <option value="1">あり</option>
+              <option value="0">なし</option>
+            </select>
+          </div>
+          <div class="right">
+            <button class="btn primary" id="parseCsv">表示</button>
+          </div>
+        </div>
+        <div id="csvTableWrap"></div>
+      </div>
+    </section>
+
+    <!-- Notes -->
+    <section class="panel" data-panel="notes">
+      <h2>メモ（自動保存）</h2>
+      <label>自由メモ</label>
+      <textarea id="memo" placeholder="ここに雑メモ。ケースID、調査観点、呼び返し文面案…など"></textarea>
+      <div class="right small muted">保存先：localStorage（この端末のこのブラウザだけ）</div>
+    </section>
+  </div>
+</div>
+
+<script>
+/* ---------- タブ ---------- */
+const TABS = [
+  {id:'snip', label:'スニペット'},
+  {id:'sla',  label:'SLA期日'},
+  {id:'tz',   label:'時差変換'},
+  {id:'enc',  label:'URL/BASE64'},
+  {id:'json', label:'JSON'},
+  {id:'csv',  label:'CSV'},
+  {id:'notes',label:'メモ'}
+];
+const tabsEl = document.getElementById('tabs');
+const panels = [...document.querySelectorAll('.panel')];
+TABS.forEach(t=>{
+  const b=document.createElement('button');
+  b.className='tabbtn'; b.textContent=t.label; b.dataset.target=t.id;
+  b.onclick=()=>activate(t.id);
+  tabsEl.appendChild(b);
+});
+function activate(id){
+  document.querySelectorAll('.tabbtn').forEach(b=>b.classList.toggle('active', b.dataset.target===id));
+  panels.forEach(p=>p.classList.toggle('active', p.dataset.panel===id));
+  localStorage.setItem('cshelper.active', id);
+}
+activate(localStorage.getItem('cshelper.active') || 'snip');
+
+/* ---------- スニペット ---------- */
+const $ = id=>document.getElementById(id);
+const tplEl=$('tpl'), varsEl=$('vars'), outEl=$('out'), tplNameEl=$('tplName');
+$('apply').onclick=()=>{
+  try{
+    const vars = varsEl.value.trim()? JSON.parse(varsEl.value): {};
+    const result = tplEl.value.replace(/\{\{\s*([\w.-]+)\s*\}\}/g,(_,k)=>{
+      return (k.split('.').reduce((o,kk)=>o&&o[kk], vars) ?? '');
+    });
+    outEl.value=result;
+  }catch(e){ alert('変数(JSON)のパースに失敗しました'); }
+};
+$('copyOut').onclick=()=>{ outEl.select(); document.execCommand('copy'); };
+$('saveTpl').onclick=()=>{
+  const name = (tplNameEl.value||'default').trim();
+  const saved = JSON.parse(localStorage.getItem('cshelper.tpls')||'{}');
+  saved[name]=tplEl.value;
+  localStorage.setItem('cshelper.tpls', JSON.stringify(saved));
+  alert('保存しました: '+name);
+};
+$('loadTpl').onclick=()=>{
+  const saved = JSON.parse(localStorage.getItem('cshelper.tpls')||'{}');
+  const names = Object.keys(saved);
+  if(!names.length){ alert('保存済みテンプレはありません'); return; }
+  const pick = prompt('読み込むテンプレ名を入力:\n'+names.join(', '), names[0]);
+  if(pick && saved[pick]!=null){ tplEl.value=saved[pick]; tplNameEl.value=pick; }
+};
+$('clearTpl').onclick=()=>{
+  const saved = JSON.parse(localStorage.getItem('cshelper.tpls')||'{}');
+  const name = (tplNameEl.value||'default').trim();
+  if(saved[name]){ delete saved[name]; localStorage.setItem('cshelper.tpls', JSON.stringify(saved)); alert('削除しました: '+name);}
+  else alert('その名前のテンプレはありません');
+};
+
+/* ---------- SLA計算 ---------- */
+function parseHolidays(str){
+  return new Set((str||'').split(',').map(s=>s.trim()).filter(Boolean));
+}
+function isWeekend(d){ const day=d.getDay(); return day===0||day===6; }
+function isHoliday(d, set){ const iso=d.toISOString().slice(0,10); return set.has(iso); }
+function setTime(d,h,m){ const x=new Date(d); x.setHours(h,m,0,0); return x; }
+function addBusinessHours(start, hours, holidays){
+  let cur = new Date(start);
+  let remain = hours;
+  const openH=9, closeH=18; // JST
+  while(remain>0){
+    // その日の営業時間帯
+    let dayOpen=setTime(cur,openH,0), dayClose=setTime(cur,closeH,0);
+    // 休日は翌営業日9:00へ
+    if(isWeekend(cur)||isHoliday(cur,holidays) || cur>=dayClose){
+      // 次の平日9:00へ
+      do{ cur = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate()+1, openH,0); }
+      while(isWeekend(cur)||isHoliday(cur,holidays));
+      continue;
+    }
+    if(cur<dayOpen) cur=dayOpen;
+    const available = (dayClose - cur)/36e5; // hours
+    const take = Math.min(available, remain);
+    cur = new Date(cur.getTime() + take*36e5);
+    remain -= take;
+    if(remain>0){
+      // 翌営業日9:00
+      do{ cur = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate()+1, openH,0); }
+      while(isWeekend(cur)||isHoliday(cur,holidays));
+    }
+  }
+  return cur;
+}
+$('calcSLA').onclick=()=>{
+  const start = $('slaStart').value ? new Date($('slaStart').value) : new Date();
+  const hours = parseFloat($('slaHours').value||'0');
+  const holi = parseHolidays($('holidays').value);
+  const due = addBusinessHours(start, hours, holi);
+  const fmt = new Intl.DateTimeFormat('ja-JP', {dateStyle:'full', timeStyle:'short', timeZone:'Asia/Tokyo'});
+  $('slaResult').textContent = '期日（JST）: '+ fmt.format(due);
+};
+
+/* ---------- 時差 ---------- */
+const tzList = ['UTC','Asia/Tokyo','America/Los_Angeles','America/New_York','Europe/London','Europe/Berlin','Asia/Singapore','Australia/Sydney'];
+const tzSel=$('tzSelect'); tzList.forEach(z=>{ const o=document.createElement('option'); o.value=z;o.textContent=z; tzSel.appendChild(o); });
+$('nowTz').onclick=()=>{ const now=new Date(); $('tzBase').value = new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,16); };
+$('convTz').onclick=()=>{
+  const base = $('tzBase').value ? new Date($('tzBase').value) : new Date();
+  const dst = tzSel.value;
+  // baseはローカル時刻として扱い、TokyoとみなしてUTCへ、そこからdstへ表示
+  const tokyo = 'Asia/Tokyo';
+  // ローカル値をTokyoの壁時計時刻としてUTCミリ秒に近似変換
+  function wallToUTC(date, zone){
+    // そのゾーンのオフセットを推定
+    const f = new Intl.DateTimeFormat('en-US',{timeZone:zone, hour12:false, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'});
+    // 近似のため、入力時刻を一旦ISO文字列で組み立ててDateにする
+    const parts = {y:date.getFullYear(), m:date.getMonth()+1, d:date.getDate(), H:date.getHours(), M:date.getMinutes()};
+    // UTCとして解釈されないよう、ここは面倒なのでオフセット差を2回評価して収束させる
+    const guess = Date.UTC(parts.y,parts.m-1,parts.d,parts.H,parts.M);
+    // ゾーンでの同一瞬間表示を得て、差からオフセットを逆算
+    const disp = new Date(guess);
+    const shown = f.formatToParts(disp).reduce((a,p)=>{a[p.type]=p.value;return a;}, {});
+    // 誤差が大きい場合は補正（簡易）
+    return new Date(guess);
+  }
+  // 実用上は単純にtoLocaleStringでdst表示
+  const fmt = new Intl.DateTimeFormat('ja-JP',{timeZone: dst, dateStyle:'full', timeStyle:'medium'});
+  $('tzOut').textContent = `→ ${dst}: ` + fmt.format(base);
+};
+
+/* ---------- Encode ---------- */
+$('toURL').onclick=()=>{ $('encOut').value = encodeURIComponent($('encIn').value); };
+$('fromURL').onclick=()=>{ try{$('encOut').value = decodeURIComponent($('encIn').value);}catch{alert('URLデコード失敗');} };
+$('toB64').onclick=()=>{ try{$('encOut').value = btoa(unescape(encodeURIComponent($('encIn').value)));}catch{alert('Base64エンコード失敗（バイナリ？）');} };
+$('fromB64').onclick=()=>{ try{$('encOut').value = decodeURIComponent(escape(atob($('encIn').value)));}catch{alert('Base64デコード失敗');} };
+$('copyEnc').onclick=()=>{ $('encOut').select(); document.execCommand('copy'); };
+$('swapEnc').onclick=()=>{ const x=$('encIn').value; $('encIn').value=$('encOut').value; $('encOut').value=x; };
+
+/* ---------- JSON ---------- */
+$('fmtJson').onclick=()=>{ try{$('jsonOut').value = JSON.stringify(JSON.parse($('jsonIn').value), null, 2); $('jsonMsg').innerHTML='<span class="fine">整形OK</span>'; }catch(e){ $('jsonMsg').innerHTML='<span style="color:var(--bad)">エラー: '+e.message+'</span>'; } };
+$('minJson').onclick=()=>{ try{$('jsonOut').value = JSON.stringify(JSON.parse($('jsonIn').value)); $('jsonMsg').innerHTML='<span class="fine">最小化OK</span>'; }catch(e){ $('jsonMsg').innerHTML='<span style="color:var(--bad)">エラー: '+e.message+'</span>'; } };
+$('valJson').onclick=()=>{ try{ JSON.parse($('jsonIn').value); $('jsonMsg').innerHTML='<span class="fine">有効なJSONです</span>'; }catch(e){ $('jsonMsg').innerHTML='<span style="color:var(--bad)">無効なJSON: '+e.message+'</span>'; } };
+
+/* ---------- CSV ---------- */
+const drop=$('drop'), fileInput=$('csvFile');
+;['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault(); drop.style.borderColor='var(--brand)';}));
+;['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault(); drop.style.borderColor='#2a2f49';}));
+drop.addEventListener('drop', e=>{ fileInput.files = e.dataTransfer.files; });
+$('parseCsv').onclick=()=>{
+  const f=fileInput.files?.[0];
+  if(!f){ alert('CSVファイルを選択してください'); return; }
+  const sep = $('csvSep').value.replace('\\t','\t');
+  const hasHeader = $('csvHeader').value==='1';
+  const r = new FileReader();
+  r.onload=()=>{
+    const text = r.result.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+    // ざっくりCSV（クォート対応の簡易版）
+    const rows=[]; let row=[], cell='', inQ=false;
+    for(let i=0;i<text.length;i++){
+      const c=text[i], next=text[i+1];
+      if(inQ){
+        if(c==='"' && next!=='"'){ inQ=false; }
+        else if(c==='"' && next==='"'){ cell+='"'; i++; }
+        else cell+=c;
+      }else{
+        if(c==='"'){ inQ=true; }
+        else if(c===sep){ row.push(cell); cell=''; }
+        else if(c==='\n'){ row.push(cell); rows.push(row); row=[]; cell=''; }
+        else cell+=c;
+      }
+    }
+    if(cell.length || row.length){ row.push(cell); rows.push(row); }
+    renderTable(rows, hasHeader);
+  };
+  r.readAsText(f);
+};
+function renderTable(rows, hasHeader){
+  const wrap=$('csvTableWrap'); wrap.innerHTML='';
+  if(!rows.length){ wrap.textContent='データなし'; return; }
+  const table=document.createElement('table');
+  const thead=document.createElement('thead'), tbody=document.createElement('tbody');
+  if(hasHeader){
+    const tr=document.createElement('tr');
+    rows[0].forEach(h=>{ const th=document.createElement('th'); th.textContent=h; tr.appendChild(th); });
+    thead.appendChild(tr);
+    rows.slice(1).forEach(r=>{ const tr=document.createElement('tr'); r.forEach(v=>{ const td=document.createElement('td'); td.textContent=v; tr.appendChild(td); }); tbody.appendChild(tr); });
+  }else{
+    // 自動番号ヘッダー
+    const colN=Math.max(...rows.map(r=>r.length));
+    const tr=document.createElement('tr'); for(let i=0;i<colN;i++){ const th=document.createElement('th'); th.textContent='col'+(i+1); tr.appendChild(th); } thead.appendChild(tr);
+    rows.forEach(r=>{ const tr=document.createElement('tr'); for(let i=0;i<colN;i++){ const td=document.createElement('td'); td.textContent=r[i]??''; tr.appendChild(td); } tbody.appendChild(tr); });
+  }
+  table.appendChild(thead); table.appendChild(tbody); wrap.appendChild(table);
+}
+
+/* ---------- メモ ---------- */
+const memo=$('memo');
+memo.value = localStorage.getItem('cshelper.memo')||'';
+memo.addEventListener('input',()=>localStorage.setItem('cshelper.memo', memo.value));
+
+/* ---------- 初期値 ---------- */
+(function init(){
+  // SLA: 今
+  const now = new Date(); now.setMinutes(now.getMinutes()-now.getTimezoneOffset()); $('slaStart').value = now.toISOString().slice(0,16);
+  $('tzBase').value = now.toISOString().slice(0,16);
+  // サンプルテンプレ
+  if(!localStorage.getItem('cshelper.tpls')){
+    localStorage.setItem('cshelper.tpls', JSON.stringify({
+      '初回案内': 'こんにちは {{name}} 様。\nお問い合わせ（{{caseId}}）ありがとうございます。担当の{{agent}}です。内容を確認し、{{eta}}頃までにご連絡します。'
+    }));
+  }
+})();
+</script>
+</body>
+</html>
