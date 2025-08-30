@@ -1,83 +1,117 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>UserNote</title>
-<style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>UserNote</title>
+
   <link rel="stylesheet" href="theme.css">
-  html,body{margin:0;padding:0;height:100%;width:100%;overflow:hidden;font-family:sans-serif;display:flex;flex-direction:column}
+
+<style>
+   html,body{
+  margin:0;padding:0;height:100%;width:100%;overflow:hidden;
+  font-family:sans-serif;display:flex;flex-direction:column;
+  background:linear-gradient(180deg,#0e1120,#0a0d16); /* ← テーマの背景 */
+  color:var(--ink);
+  }
   #app-container{flex-grow:1;display:flex;flex-direction:column;height:100%}
 
   /* ==== ヘッダー（スリム） ==== */
-  #menu-bar{height:40px;background:#e0e0e0;border-bottom:1px solid #ccc;display:flex;align-items:center;padding:0 8px;gap:8px;white-space:nowrap;overflow-x:auto}
-  #menu-bar button{padding:5px 10px;cursor:pointer}
+  #menu-bar{
+  height:40px;
+  background:var(--panel);
+  border-bottom:1px solid #2a2f49;
+  display:flex;align-items:center;padding:0 8px;gap:8px;white-space:nowrap;overflow-x:auto
+  }
+  #menu-bar button{
+  padding:5px 10px;cursor:pointer;
+  background:#101428;border:1px solid #2a2f49;color:var(--ink);border-radius:8px;
+  }
+  #menu-bar button:hover{ box-shadow:0 0 0 2px rgba(122,162,255,.15) inset; border-color:var(--brand); }
   #header-right{margin-left:auto;display:flex;align-items:center;gap:8px}
   #header-wordcount{font-size:13px;opacity:.9}
+  #sidebar{
+  width:260px;min-width:150px;max-width:520px;
+  background:var(--panel);border-right:1px solid #2a2f49;
+  display:flex;flex-direction:column;resize:horizontal;overflow:auto
+  }
+  #sidebar-header{ padding:6px;border-bottom:1px solid #2a2f49;display:flex;gap:6px }
 
   /* 文字サイズ */
   #font-size-slider-container{display:flex;align-items:center;gap:6px}
   #font-size-slider{width:120px}
 
-  /* ==== レイアウト ==== */
   #main-content{flex-grow:1;display:flex;overflow:hidden}
-  #sidebar{width:260px;min-width:150px;max-width:520px;background:#f4f4f4;border-right:1px solid #ddd;display:flex;flex-direction:column;resize:horizontal;overflow:auto}
-  #sidebar-header{padding:6px;border-bottom:1px solid #ddd;display:flex;gap:6px}
   #note-list{flex-grow:1;overflow:auto}
   .folder-container,.note-item{border-bottom:1px solid #eee}
 
   /* ==== フォルダ ==== */
-  .folder-header{display:flex;align-items:center;padding:10px;cursor:pointer;background:#e9e9e9;font-weight:bold;font-size:14px;user-select:none}
-  .folder-header.drag-over{outline:2px dashed #5ab85a;background:#e8ffe8}
+  .folder-header{
+  display:flex;align-items:center;padding:10px;cursor:pointer;
+  background:#131626;color:var(--ink);font-weight:bold;font-size:14px;user-select:none
+  }
   .folder-toggle{margin-right:8px;transition:.2s;display:inline-block;width:12px}
   .folder-container[data-is-open="false"] .folder-toggle{transform:rotate(-90deg)}
-  .folder-header .folder-name{margin-left:8px;flex:1}
+  .folder-header.drag-over{ outline:2px dashed var(--ok); background:#0f1324 }
+  .folder-notes{ padding-left:20px;min-height:5px }
+  .folder-notes.drag-over{ background:#0f1324 }
+
   .folder-rename-btn,.folder-delete-btn{margin-left:5px;padding:2px 6px;cursor:pointer;border:none;background:none;font-size:14px;opacity:.6}
   .folder-rename-btn:hover,.folder-delete-btn:hover{opacity:1;background:#ffcccc;border-radius:4px}
-  .folder-notes{padding-left:20px;min-height:5px}
-  .folder-notes.drag-over{background:#e0f0ff}
   .folder-container[data-is-open="false"] .folder-notes{display:none}
 
   /* ==== メモ ==== */
-  .note-item{padding:10px 10px 10px 15px;display:flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;-webkit-user-drag:element}
-  .note-item:hover{background:#e9e9e9}
-  .note-item.active{background:#d0d0d0;font-weight:bold}
+  .note-item{ padding:10px 10px 10px 15px;display:flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;-webkit-user-drag:element }
+  .note-item:hover{ background:#131626 }
+  .note-item.active{ background:#101428;font-weight:bold }
   .delete-button{margin-left:auto;padding:2px 6px;border-radius:4px;font-size:14px;visibility:hidden;opacity:.6}
+  .note-title-input{
+  width:100%;padding:10px 15px;border:none;border-bottom:1px solid #2a2f49;
+  font-size:20px;font-weight:bold;box-sizing:border-box;outline:none;background:#0f1324;color:var(--ink)
+  }
+  #note-editor{
+  flex-grow:1;width:100%;padding:15px;border:none;outline:none;resize:none;box-sizing:border-box;
+  font-size:16px;line-height:1.6;overflow:auto;white-space:pre-wrap;word-wrap:break-word;
+  background:#0f1324;color:var(--ink)
+  }
   .note-item:hover .delete-button{visibility:visible}
   .delete-button:hover{opacity:1;background:#ffcccc}
 
   /* ==== 右ペイン ==== */
   #editor-area-container{flex-grow:1;display:flex;flex-direction:column;overflow:hidden}
-  .note-title-input{width:100%;padding:10px 15px;border:none;border-bottom:1px solid #ddd;font-size:20px;font-weight:bold;box-sizing:border-box;outline:none;background:#fff}
-  #note-editor{flex-grow:1;width:100%;padding:15px;border:none;outline:none;resize:none;box-sizing:border-box;font-size:16px;line-height:1.6;overflow:auto;white-space:pre-wrap;word-wrap:break-word}
-
+  
   /* ==== ステータスバー ==== */
-  #status-bar{height:25px;background:#e0e0e0;border-top:1px solid #ccc;display:flex;align-items:center;padding:0 10px;font-size:12px;gap:8px}
+  #status-bar{
+  height:25px;background:var(--panel);border-top:1px solid #2a2f49;
+  display:flex;align-items:center;padding:0 10px;font-size:12px;gap:8px;color:var(--muted)
+  }
   #status-bar span{margin-right:12px}
+  .kbd{
+  font-family:ui-monospace, SFMono-Regular, Menlo, monospace;
+  background:#0b0f1f;border:1px solid #2a2f49;border-bottom-width:2px;border-radius:4px;padding:1px 4px;font-size:12px;color:var(--ink)
+  }
 
   /* ==== ルート戻しドロップ領域 ==== */
   .root-drop-area{padding:8px 10px;min-height:16px;border-top:1px dashed #ccc;background:#fafafa;position:sticky;bottom:0}
   .root-drop-area.drag-over{background:#e8ffe8;outline:1px dashed #5ab85a}
 
-  /* ==== モーダル（共通） ==== */
-  .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:50}
-  .modal{background:#fff;width:min(520px,90vw);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.2);padding:14px 14px 10px}
-  .modal header{font-weight:bold;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
-  .modal .close-btn{border:none;background:none;font-size:20px;cursor:pointer;opacity:.7}
-  .modal .close-btn:hover{opacity:1}
+  /* モーダル */
+  .modal-backdrop{ position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:50 }
+  .modal{ background:#101428;width:min(520px,90vw);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.4);padding:14px 14px 10px;color:var(--ink);border:1px solid #2a2f49 }
+  .modal header{ font-weight:bold;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;color:var(--ink) }
+  .modal .close-btn{ border:none;background:none;font-size:20px;cursor:pointer;opacity:.7;color:var(--ink) }
+  .modal .close-btn:hover{ opacity:1 }
 
   /* 検索置換モーダル */
   .modal .row{display:flex;gap:8px;margin:8px 0}
-  .modal input[type="text"]{flex:1;padding:8px 10px;border:1px solid #ccc;border-radius:6px;font-size:14px}
   .modal .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
-  .modal .actions button{padding:6px 10px;cursor:pointer}
-  .modal .opts{display:flex;gap:12px;align-items:center;font-size:13px;color:#333}
-  .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, monospace;background:#f6f6f6;border:1px solid #ddd;border-bottom-width:2px;border-radius:4px;padding:1px 4px;font-size:12px}
-
   /* エクスポートモーダル */
-  .export-options{display:grid;grid-template-columns:1fr;gap:10px}
-  .export-options button{padding:10px 12px;font-size:14px;cursor:pointer;text-align:left;border:1px solid #ddd;border-radius:8px;background:#fafafa}
-  .export-options button:hover{background:#f0f0f0}
+  .export-options{display:grid;grid-template-columns:1fr;gap:10px}  
+  /* 入力系 */
+  .modal input[type="text"]{ flex:1;padding:8px 10px;border:1px solid #2a2f49;border-radius:6px;font-size:14px;background:#0f1324;color:var(--ink) }
+  .modal .actions button{ padding:6px 10px;cursor:pointer;background:#101428;border:1px solid #2a2f49;color:var(--ink);border-radius:8px }
+  .export-options button{ padding:10px 12px;font-size:14px;cursor:pointer;text-align:left;border:1px solid #2a2f49;border-radius:8px;background:#0f1324;color:var(--ink) }
+  .export-options button:hover{ background:#131626 }
 </style>
 </head>
 <body>
@@ -567,10 +601,6 @@
     editor.value = editor.value.replace(/\t/g, "\n");
     editor.selectionEnd = pos;
   });
-</script>
-</body>
-</html>
-
 </script>
 </body>
 </html>
