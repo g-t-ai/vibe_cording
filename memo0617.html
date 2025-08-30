@@ -112,6 +112,43 @@
   .modal .actions button{ padding:6px 10px;cursor:pointer;background:#101428;border:1px solid #2a2f49;color:var(--ink);border-radius:8px }
   .export-options button{ padding:10px 12px;font-size:14px;cursor:pointer;text-align:left;border:1px solid #2a2f49;border-radius:8px;background:#0f1324;color:var(--ink) }
   .export-options button:hover{ background:#131626 }
+  :root {
+  /* paper mode (editor only) */
+  --paper-bg: #f6f7fb;
+  --paper-ink: #0b0d14;
+  --paper-muted: #5b6278;
+  --paper-border: #e0e3ef;
+  --paper-selection: #cfe3ff;
+}
+  /* ===== Paperモード：本文エリアだけ明るく ===== */
+body.paper .note-title-input{
+  background: var(--paper-bg);
+  color: var(--paper-ink);
+  border-bottom: 1px solid var(--paper-border);
+}
+
+body.paper #note-editor{
+  background: var(--paper-bg);
+  color: var(--paper-ink);
+  line-height: 1.7;
+  font-size: 16px;
+  letter-spacing: .01em;
+  border-top: 1px solid var(--paper-border);
+  caret-color: var(--brand);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* プレースホルダー/選択色も紙側に合わせる */
+body.paper #note-editor::placeholder { color: var(--paper-muted); }
+body.paper ::selection { background: var(--paper-selection); color: var(--paper-ink); }
+
+/* エディタのスクロールバーを薄く（ブラウザ対応範囲で） */
+body.paper #note-editor::-webkit-scrollbar { width: 10px; }
+body.paper #note-editor::-webkit-scrollbar-thumb {
+  background: #d6dbeb; border-radius: 8px; border: 2px solid var(--paper-bg);
+}
+
 </style>
 </head>
 <body>
@@ -126,6 +163,7 @@
 
       <!-- エクスポート（モーダルを開く） -->
       <button id="open-export-dialog">エクスポート</button>
+      <button id="togglePaper" class="btn">Paperモード</button>
 
       <div id="header-right">
         <div id="font-size-slider-container">
@@ -601,6 +639,33 @@
     editor.value = editor.value.replace(/\t/g, "\n");
     editor.selectionEnd = pos;
   });
+  
+(function(){
+  const KEY = 'paperMode';
+  const apply = v => document.body.classList.toggle('paper', v === '1');
+
+  // 初期化（保存値を適用）
+  apply(localStorage.getItem(KEY) || '0');
+
+  // ボタンがDOMにない場合は自動で右端に追加
+  let btn = document.getElementById('togglePaper');
+  if(!btn){
+    const bar = document.getElementById('menu-bar');
+    if(bar){
+      btn = document.createElement('button');
+      btn.id = 'togglePaper';
+      btn.className = 'btn';
+      btn.textContent = 'Paperモード';
+      bar.appendChild(btn);
+    }
+  }
+
+  // クリックで切替
+  btn?.addEventListener('click', () => {
+    const on = document.body.classList.toggle('paper');
+    localStorage.setItem(KEY, on ? '1' : '0');
+  });
+})();
 </script>
 </body>
 </html>
