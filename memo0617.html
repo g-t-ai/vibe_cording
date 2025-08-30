@@ -127,6 +127,7 @@ body.paper .note-title-input{
   border-bottom: 1px solid var(--paper-border);
 }
 
+/* 本文を紙色にする（必須） */
 body.paper #note-editor{
   background: var(--paper-bg);
   color: var(--paper-ink);
@@ -137,6 +138,12 @@ body.paper #note-editor{
   caret-color: var(--brand);
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+}
+
+/* 選択範囲の配色（追加） */
+body.paper #note-editor::selection {
+  background: var(--paper-selection);
+  color: var(--paper-ink);
 }
 
 /* プレースホルダー/選択色も紙側に合わせる */
