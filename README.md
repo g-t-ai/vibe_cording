@@ -5,7 +5,7 @@ README.md
 これは Git のテストです。  
 
 ## 使い方
-👉 [ここを開いてください](https://g-t-ai.github.io/vibe_cording/)  
+👉 <a href="https://g-t-ai.github.io/vibe_cording/" target="_blank">ここを開いてください</a>
 必要なツールを選んで、そのまま使えます。
 
 ## 補足
