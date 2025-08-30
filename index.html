@@ -1,82 +1,268 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>vibe_cording メニュー</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Vibe Coding | ショールーム</title>
+  <meta name="description" content="思いつきツールのショールーム。検索・タグでサッと探せます。">
   <style>
-    body {
-      font-family: "Segoe UI", sans-serif;
-      background: #f0f2f5;
-      margin: 0;
-      padding: 2em;
+    :root{
+      --bg:#ffffff; --fg:#0f172a; --muted:#64748b; --card:#f8fafc; --stroke:#e2e8f0; --acc:#2563eb;
+      --chip:#e2e8f0; --chip-fg:#0f172a; --chip-on:#1e293b; --chip-on-fg:#ffffff;
     }
-    h1 {
-      color: #333;
-      margin-bottom: 1.5em;
-      text-align: center;
+    @media (prefers-color-scheme: dark){
+      :root{
+        --bg:#0b1020; --fg:#e6edf3; --muted:#93a4b8; --card:#131a2a; --stroke:#213049; --acc:#60a5fa;
+        --chip:#1b253a; --chip-fg:#c7d2fe; --chip-on:#284162; --chip-on-fg:#e6edf3;
+      }
     }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 1.5em;
-      max-width: 900px;
-      margin: 0 auto;
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji";
+      background:var(--bg); color:var(--fg); line-height:1.6;
     }
-    .card {
-      background: #fff;
-      border-radius: 12px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-      padding: 1.5em;
-      text-align: center;
-      transition: transform 0.2s, box-shadow 0.2s;
+    header{
+      position:sticky; top:0; z-index:10; backdrop-filter:saturate(140%) blur(8px);
+      background:color-mix(in oklab, var(--bg) 85%, transparent); border-bottom:1px solid var(--stroke);
     }
-    .card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+    .wrap{max-width:1100px; margin:0 auto; padding:16px;}
+    .title{display:flex; gap:12px; align-items:center; flex-wrap:wrap}
+    .title h1{margin:0; font-size:clamp(20px,3vw,28px); letter-spacing:.2px}
+    .hint{color:var(--muted); font-size:12px}
+    .controls{display:grid; grid-template-columns: 1fr; gap:10px; margin-top:12px}
+    .search{
+      display:flex; align-items:center; gap:8px; padding:10px 12px; border:1px solid var(--stroke); border-radius:12px; background:var(--card)
     }
-    .card a {
-      display: inline-block;
-      margin-top: 0.5em;
-      padding: 0.6em 1.2em;
-      background: #333;
-      color: #fff;
-      border-radius: 6px;
-      text-decoration: none;
-      font-size: 0.9em;
+    .search input{
+      flex:1; border:none; outline:none; background:transparent; color:var(--fg); font-size:14px
     }
-    .card a:hover {
-      background: #555;
+    .tags{display:flex; flex-wrap:wrap; gap:8px}
+    .chip{
+      appearance:none; border:1px solid var(--stroke); background:var(--chip); color:var(--chip-fg);
+      padding:6px 10px; border-radius:999px; font-size:12px; cursor:pointer; transition:.15s transform;
+    }
+    .chip[aria-pressed="true"]{ background:var(--chip-on); color:var(--chip-on-fg); border-color:transparent }
+    .chip:active{ transform:scale(0.98) }
+    .sort{display:flex; gap:8px; align-items:center; color:var(--muted); font-size:12px}
+    .sort select{background:var(--card); color:var(--fg); border:1px solid var(--stroke); border-radius:8px; padding:6px 8px}
+    main{padding:16px}
+    .grid{
+      display:grid; gap:14px;
+      grid-template-columns: repeat( auto-fill, minmax(260px, 1fr) );
+    }
+    .card{
+      background:var(--card); border:1px solid var(--stroke); border-radius:16px; padding:14px; display:flex; flex-direction:column; gap:10px
+    }
+    .card h3{margin:0; font-size:16px}
+    .desc{color:var(--muted); font-size:13px}
+    .meta{display:flex; gap:8px; align-items:center; color:var(--muted); font-size:12px}
+    .pill{border:1px solid var(--stroke); padding:2px 8px; border-radius:999px}
+    .cta{
+      margin-top:auto; display:flex; gap:8px; flex-wrap:wrap
+    }
+    .btn{
+      display:inline-flex; align-items:center; gap:8px;
+      border:1px solid var(--stroke); background:var(--bg); color:var(--fg);
+      padding:8px 12px; border-radius:12px; text-decoration:none; font-size:14px
+    }
+    .btn.primary{ background:var(--acc); border-color:transparent; color:#fff }
+    .empty{padding:24px; text-align:center; color:var(--muted); border:1px dashed var(--stroke); border-radius:12px}
+    footer{border-top:1px solid var(--stroke); color:var(--muted); font-size:12px}
+    .kbd{font-family:ui-monospace, Menlo, Consolas, "SFMono-Regular"; font-size:12px; padding:2px 6px; border:1px solid var(--stroke); border-radius:6px}
+    @media (min-width:720px){
+      .controls{grid-template-columns: 1fr auto}
     }
   </style>
 </head>
 <body>
-  <h1>vibe_cording メニュー</h1>
-  <div class="grid">
-    <div class="card">
-      <h2>Hybrid Memo</h2>
-      <p>ハイブリッドメモのページ</p>
-      <a href="hybrid_memo.html">開く</a>
+  <header>
+    <div class="wrap">
+      <div class="title">
+        <h1>Vibe Coding ショールーム</h1>
+        <span class="hint">思いつきツールをサッと使うための展示棚</span>
+      </div>
+      <div class="controls" role="region" aria-label="フィルタと検索">
+        <label class="search" aria-label="検索">
+          🔎
+          <input id="q" type="search" placeholder="キーワードで絞り込み（例: 画像, CSV, テキスト整形）" autocomplete="off">
+          <kbd class="kbd">/</kbd>
+        </label>
+        <div class="sort">
+          並び替え:
+          <select id="sort">
+            <option value="updated_desc">更新が新しい順</option>
+            <option value="updated_asc">更新が古い順</option>
+            <option value="name_asc">名前 A→Z</option>
+            <option value="name_desc">名前 Z→A</option>
+          </select>
+        </div>
+      </div>
+      <div class="wrap" style="padding-top:8px">
+        <div id="tagbar" class="tags" role="group" aria-label="タグ"></div>
+      </div>
     </div>
-    <div class="card">
-      <h2>Memo 0617</h2>
-      <p>6月17日のメモ</p>
-      <a href="memo0617.html">開く</a>
+  </header>
+
+  <main class="wrap">
+    <div id="grid" class="grid" role="list"></div>
+    <div id="empty" class="empty" hidden>該当するツールがありません。検索語やタグを外してみてください。</div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <p>最新版は常にこのページに並びます。要望・不具合は気軽に声かけてください 🙌</p>
     </div>
-    <div class="card">
-      <h2>左右一致ツール</h2>
-      <p>左右が一致しているか判定するツール</p>
-      <a href="左右が一致してるか判定するツール.html">開く</a>
-    </div>
-    <div class="card">
-      <h2>メール内容整理君</h2>
-      <p>LINE風にメールのやり取りを自分で整理するツール</p>
-      <a href="メール内容整理君.html">開く</a>
-    </div>
-      <div class="card">
-      <h2>こまごまツール</h2>
-      <p>細々したツール</p>
-      <a href="toolbox.html">開く</a>
-    </div>
-  </div>
+  </footer>
+
+  <script>
+    // ==== ここだけ触ればOK（展示アイテム定義） ==========================
+    // url: クリック先（ツールのHTML/ページ）
+    // tags: ["カテゴリ", "機能"] 好きに増やしてOK
+    // updated: "YYYY-MM-DD" ざっくりでOK（並び替え用）
+    const TOOLS = [
+      {
+        name: "Vibe Coding Hub",
+        desc: "小道具の入口ページ（外部公開）。ここから各ツールへ。",
+        url: "https://g-t-ai.github.io/vibe_cording/",
+        tags: ["hub","external"],
+        updated: "2025-08-20"
+      },
+      // 例：個別ツールも増やせる
+      {
+        name: "CSV 整形メーカー",
+        desc: "貼り付けたテキストをCSVに整形してコピペできる小道具。",
+        url: "./tools/csv-maker.html",
+        tags: ["text","csv"],
+        updated: "2025-08-18"
+      },
+      {
+        name: "画像リネーマー",
+        desc: "ドラッグ&ドロップした画像名を一括でルール変換。",
+        url: "./tools/image-renamer.html",
+        tags: ["image","batch"],
+        updated: "2025-08-10"
+      },
+    ];
+    // ==== ここまで ========================================================
+
+    // ユニークタグ抽出
+    const ALL_TAGS = [...new Set(TOOLS.flatMap(t => t.tags))].sort((a,b)=>a.localeCompare(b,'ja'));
+    const state = { q:"", tags:new Set(), sort:"updated_desc" };
+
+    const $q = document.getElementById('q');
+    const $grid = document.getElementById('grid');
+    const $empty = document.getElementById('empty');
+    const $tagbar = document.getElementById('tagbar');
+    const $sort = document.getElementById('sort');
+
+    // 検索ショートカット: /
+    window.addEventListener('keydown', (e)=>{
+      if (e.key === '/' && document.activeElement !== $q){
+        e.preventDefault(); $q.focus();
+      }
+    });
+
+    // タグバー生成
+    function renderTags(){
+      $tagbar.innerHTML = "";
+      ALL_TAGS.forEach(tag=>{
+        const btn = document.createElement('button');
+        btn.className = 'chip';
+        btn.type = 'button';
+        btn.textContent = `#${tag}`;
+        btn.setAttribute('aria-pressed', state.tags.has(tag));
+        btn.addEventListener('click', ()=>{
+          if (state.tags.has(tag)) state.tags.delete(tag); else state.tags.add(tag);
+          btn.setAttribute('aria-pressed', state.tags.has(tag));
+          render();
+        });
+        $tagbar.appendChild(btn);
+      });
+      // クリアボタン
+      if (ALL_TAGS.length){
+        const clear = document.createElement('button');
+        clear.className = 'chip';
+        clear.type = 'button';
+        clear.textContent = 'タグ解除';
+        clear.addEventListener('click', ()=>{
+          state.tags.clear(); render();
+          [...$tagbar.querySelectorAll('.chip')].forEach((c,i)=>{
+            if (i < ALL_TAGS.length) c.setAttribute('aria-pressed','false');
+          });
+        });
+        $tagbar.appendChild(clear);
+      }
+    }
+
+    // 並び替え
+    function sortItems(items){
+      const byUpdated = (a,b)=> new Date(a.updated) - new Date(b.updated);
+      const byName = (a,b)=> a.name.localeCompare(b.name,'ja');
+      switch(state.sort){
+        case 'updated_desc': return items.sort((a,b)=> byUpdated(b,a));
+        case 'updated_asc': return items.sort(byUpdated);
+        case 'name_asc': return items.sort(byName);
+        case 'name_desc': return items.sort((a,b)=> byName(b,a));
+        default: return items;
+      }
+    }
+
+    // 描画
+    function render(){
+      let items = [...TOOLS];
+
+      // 検索
+      const q = state.q.trim().toLowerCase();
+      if (q){
+        items = items.filter(t=>{
+          const hay = [t.name, t.desc, ...(t.tags||[])].join(' ').toLowerCase();
+          return hay.includes(q);
+        });
+      }
+
+      // タグ
+      if (state.tags.size){
+        items = items.filter(t => [...state.tags].every(tag => (t.tags||[]).includes(tag)));
+      }
+
+      // ソート
+      items = sortItems(items);
+
+      // 出力
+      $grid.innerHTML = "";
+      if (!items.length){ $empty.hidden = false; return; }
+      $empty.hidden = true;
+
+      for (const t of items){
+        const card = document.createElement('article');
+        card.className = 'card'; card.role = 'listitem';
+        card.innerHTML = `
+          <h3>${escapeHTML(t.name)}</h3>
+          <p class="desc">${escapeHTML(t.desc || "")}</p>
+          <div class="meta">
+            <span class="pill">更新: ${escapeHTML(t.updated || "-")}</span>
+            ${(t.tags||[]).slice(0,3).map(x=>`<span class="pill">#${escapeHTML(x)}</span>`).join('')}
+          </div>
+          <div class="cta">
+            <a class="btn primary" href="${encodeURI(t.url)}" target="_blank" rel="noopener">開く</a>
+            <a class="btn" href="${encodeURI(t.url)}" download>ダウンロード</a>
+          </div>
+        `;
+        $grid.appendChild(card);
+      }
+    }
+
+    function escapeHTML(s){
+      return String(s).replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+    }
+
+    // イベント
+    $q.addEventListener('input', ()=>{ state.q = $q.value; render(); });
+    $sort.addEventListener('change', ()=>{ state.sort = $sort.value; render(); });
+
+    // 初期化
+    renderTags();
+    render();
+  </script>
 </body>
 </html>
