@@ -92,8 +92,20 @@
   }
 
   /* ==== ルート戻しドロップ領域 ==== */
-  .root-drop-area{padding:8px 10px;min-height:16px;border-top:1px dashed #ccc;background:#fafafa;position:sticky;bottom:0}
-  .root-drop-area.drag-over{background:#e8ffe8;outline:1px dashed #5ab85a}
+ /* 既存の .root-drop-area 定義の後ろに追記して上書き */
+  .root-drop-area{
+    background: var(--panel);
+    color: var(--muted);
+    border-top: 1px dashed #2a2f49;
+  }
+  .root-drop-area.drag-over{
+    background: #0f1324;
+    outline: 1px dashed var(--ok);
+    color: var(--ink);
+  }
+  /* リンクが入る場合の保険 */
+  .root-drop-area a{ color: inherit; text-decoration: none; }
+  .root-drop-area a:hover{ color: var(--brand); }
 
   /* モーダル */
   .modal-backdrop{ position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:50 }
