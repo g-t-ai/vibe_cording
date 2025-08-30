@@ -119,30 +119,43 @@
     // url: クリック先（ツールのHTML/ページ）
     // tags: ["カテゴリ", "機能"] 好きに増やしてOK
     // updated: "YYYY-MM-DD" ざっくりでOK（並び替え用）
-    const TOOLS = [
-      {
-        name: "Vibe Coding Hub",
-        desc: "小道具の入口ページ（外部公開）。ここから各ツールへ。",
-        url: "https://g-t-ai.github.io/vibe_cording/",
-        tags: ["hub","external"],
-        updated: "2025-08-20"
-      },
-      // 例：個別ツールも増やせる
-      {
-        name: "CSV 整形メーカー",
-        desc: "貼り付けたテキストをCSVに整形してコピペできる小道具。",
-        url: "./tools/csv-maker.html",
-        tags: ["text","csv"],
-        updated: "2025-08-18"
-      },
-      {
-        name: "画像リネーマー",
-        desc: "ドラッグ&ドロップした画像名を一括でルール変換。",
-        url: "./tools/image-renamer.html",
-        tags: ["image","batch"],
-        updated: "2025-08-10"
-      },
-    ];
+const TOOLS = [
+  {
+    name: "Hybrid Memo",
+    desc: "ハイブリッド型のメモツール。",
+    url: "./hybrid_memo.html",
+    tags: ["memo","text"],
+    updated: "2025-08-31"
+  },
+  {
+    name: "Memo 0617",
+    desc: "2025/06/17 作成のメモツール。",
+    url: "./memo0617.html",
+    tags: ["memo"],
+    updated: "2025-06-17"
+  },
+  {
+    name: "Toolbox",
+    desc: "いくつかの便利機能をまとめたツールボックス。",
+    url: "./toolbox.html",
+    tags: ["utility"],
+    updated: "2025-08-31"
+  },
+  {
+    name: "メール内容整理君",
+    desc: "メール本文を整理・整形するためのツール。",
+    url: "./メール内容整理君.html",
+    tags: ["text","mail"],
+    updated: "2025-08-31"
+  },
+  {
+    name: "左右が一致してるか判定するツール",
+    desc: "テキストの左右一致をチェックするツール。",
+    url: "./左右が一致してるか判定するツール.html",
+    tags: ["text","checker"],
+    updated: "2025-08-31"
+  }
+];
     // ==== ここまで ========================================================
 
     // ユニークタグ抽出
