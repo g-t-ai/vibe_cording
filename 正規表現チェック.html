@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>正規表現マッチ確認ツール</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f2f2f2;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 600px;
+      margin: 50px auto;
+      background-color: #fff;
+      padding: 20px 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    h1 {
+      text-align: center;
+      font-size: 1.8rem;
+      margin-bottom: 20px;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    input[type="text"], textarea {
+      width: 100%;
+      padding: 8px 10px;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+    .flags-container {
+      margin-top: 5px;
+    }
+    .flags-container label {
+      font-weight: normal;
+      margin-right: 10px;
+      font-size: 0.9rem;
+    }
+    button {
+      display: block;
+      width: 100%;
+      padding: 10px 0;
+      font-size: 1rem;
+      color: #fff;
+      background-color: #007bff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .result {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 4px;
+      font-size: 1rem;
+      text-align: center;
+    }
+    .result.match {
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .result.no-match {
+      background-color: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .error {
+      background-color: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeeba;
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 4px;
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>正規表現マッチ確認ツール</h1>
+    <div class="form-group">
+      <label for="textInput">テキスト</label>
+      <textarea id="textInput" placeholder="ここにチェックしたいテキストを入力してください"></textarea>
+    </div>
+    <div class="form-group">
+      <label for="patternInput">正規表現パターン</label>
+      <input type="text" id="patternInput" placeholder="例：\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b">
+      <div class="flags-container">
+        <label><input type="checkbox" id="flagIgnoreCase"> i（大文字小文字を無視）</label>
+        <label><input type="checkbox" id="flagGlobal"> g（グローバル検索）</label>
+        <label><input type="checkbox" id="flagMultiline"> m（複数行モード）</label>
+      </div>
+    </div>
+    <button id="checkButton">マッチ確認</button>
+    <div id="result" class="result" style="display: none;"></div>
+    <div id="errorMsg" class="error" style="display: none;"></div>
+  </div>
+
+  <script>
+    document.getElementById('checkButton').addEventListener('click', function() {
+      const text = document.getElementById('textInput').value;
+      const patternStr = document.getElementById('patternInput').value;
+      const flagIgnoreCase = document.getElementById('flagIgnoreCase').checked;
+      const flagGlobal = document.getElementById('flagGlobal').checked;
+      const flagMultiline = document.getElementById('flagMultiline').checked;
+
+      const resultDiv = document.getElementById('result');
+      const errorDiv = document.getElementById('errorMsg');
+
+      // 結果とエラーメッセージをリセット
+      resultDiv.style.display = 'none';
+      errorDiv.style.display = 'none';
+      resultDiv.textContent = '';
+      errorDiv.textContent = '';
+
+      if (patternStr.trim() === '') {
+        errorDiv.textContent = '正規表現パターンを入力してください。';
+        errorDiv.style.display = 'block';
+        return;
+      }
+
+      let flags = '';
+      if (flagIgnoreCase) flags += 'i';
+      if (flagGlobal) flags += 'g';
+      if (flagMultiline) flags += 'm';
+
+      let regex;
+      try {
+        regex = new RegExp(patternStr, flags);
+      } catch (e) {
+        errorDiv.textContent = '正規表現の構文エラー: ' + e.message;
+        errorDiv.style.display = 'block';
+        return;
+      }
+
+      // マッチをチェック
+      const isMatch = regex.test(text);
+
+      if (isMatch) {
+        resultDiv.textContent = '✔ テキストにマッチしました！';
+        resultDiv.className = 'result match';
+      } else {
+        resultDiv.textContent = '✖ テキストにはマッチしませんでした。';
+        resultDiv.className = 'result no-match';
+      }
+      resultDiv.style.display = 'block';
+    });
+  </script>
+</body>
+</html>
