@@ -190,6 +190,18 @@
             display: none;
             z-index: 1000;
         }
+        .selector-info {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            opacity: 0.5;  /* 追加 */
+            transition: opacity 0.3s;  /* 追加 */
+        }
+
+.selector-info.active {  /* 追加 */
+    opacity: 1;
+}
     </style>
 </head>
 <body>
@@ -230,7 +242,7 @@
             </div>
         </div>
         
-        <div class="selector-info" id="selectorInfo" style="display: none;">
+        <div class="selector-info" id="selectorInfo">
             <h2>選択した要素の情報</h2>
             
             <div class="selector-item">
@@ -339,9 +351,7 @@
             displaySelectorInfo(element);
         }
         
-        function displaySelectorInfo(element) {
-            document.getElementById('selectorInfo').style.display = 'block';
-            
+        function displaySelectorInfo(element) {            
             // 要素タイプ
             document.getElementById('elementType').textContent = element.tagName.toLowerCase();
             
