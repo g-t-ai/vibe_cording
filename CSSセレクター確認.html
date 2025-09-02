@@ -351,7 +351,10 @@
             displaySelectorInfo(element);
         }
         
-        function displaySelectorInfo(element) {            
+        function displaySelectorInfo(element) {        
+            // activeクラスを追加
+            document.getElementById('selectorInfo').classList.add('active');    
+            
             // 要素タイプ
             document.getElementById('elementType').textContent = element.tagName.toLowerCase();
             
