@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Outlookインポート用 ICS 生成ツール（1ファイル）</title>
+    <style>
+      :root {
+        --bg: #0b1020;
+        --panel: #141a33;
+        --ink: #eaf0ff;
+        --muted: #9fb0d8;
+        --accent: #78a6ff;
+        --accent2: #a78bfa;
+        --line: #253060;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: linear-gradient(180deg, #0a0f1e, #0d1430 35%, #0a0f1e);
+        color: var(--ink);
+        font-family: system-ui, Segoe UI, Roboto, Helvetica, Arial,
+          "Apple Color Emoji", "Segoe UI Emoji";
+      }
+      header {
+        padding: 28px 20px 10px;
+        max-width: 1100px;
+        margin: 0 auto;
+      }
+      h1 {
+        margin: 0 0 6px;
+        font-size: clamp(20px, 2.8vw, 28px);
+      }
+      p.lead {
+        margin: 0;
+        color: var(--muted);
+      }
+      main {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 16px 20px 60px;
+        display: grid;
+        gap: 14px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+      }
+      .section {
+        padding: 16px;
+      }
+      .inputs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .inputs > div {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .full {
+        grid-column: 1/-1;
+      }
+      label {
+        font-weight: 600;
+      }
+      input,
+      select,
+      textarea {
+        background: #0e1733;
+        border: 1px solid #2a3566;
+        color: var(--ink);
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-size: 14px;
+      }
+      textarea {
+        min-height: 100px;
+        resize: vertical;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .btn {
+        padding: 10px 14px;
+        border-radius: 10px;
+        border: 1px solid #2a3566;
+        background: #0e1733;
+        color: var(--ink);
+        cursor: pointer;
+      }
+      .btn-primary {
+        background: linear-gradient(90deg, var(--accent), var(--accent2));
+        border-color: transparent;
+        color: #0a0f1e;
+      }
+      .btn-ghost {
+        background: transparent;
+      }
+      .hint {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: 320px;
+        overflow: auto;
+        padding: 0 10px 10px;
+      }
+      .item {
+        border: 1px solid #2b3666;
+        background: #0f1630;
+        border-radius: 12px;
+        padding: 10px;
+      }
+      .item .row {
+        justify-content: space-between;
+      }
+      hr {
+        border: 0;
+        border-top: 1px solid var(--line);
+        margin: 16px 0;
+      }
+      @media (max-width: 900px) {
+        .inputs {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Outlookインポート用 iCalendar（.ics） 生成ツール</h1>
+      <p class="lead">
+        複数予定を作って .ics
+        を一括ダウンロード。終日・繰り返し・リマインダー対応（UTC出力）。
+      </p>
+    </header>
+
+    <main>
+      <section class="card">
+        <div class="section">
+          <div class="inputs">
+            <div>
+              <label>件名（必須）</label>
+              <input id="summary" placeholder="例：チーム定例" />
+            </div>
+            <div>
+              <label>場所</label>
+              <input id="location" placeholder="例：渋谷 第1会議室" />
+            </div>
+            <div class="full">
+              <label>説明</label>
+              <textarea
+                id="description"
+                placeholder="議題、参加者、会議URLなど"
+              ></textarea>
+            </div>
+
+            <div>
+              <label>開始</label>
+              <input id="start" type="datetime-local" />
+            </div>
+            <div>
+              <label>終了</label>
+              <input id="end" type="datetime-local" />
+            </div>
+
+            <div>
+              <label>終日</label>
+              <select id="allday">
+                <option value="no" selected>いいえ（時刻あり）</option>
+                <option value="yes">はい（終日）</option>
+              </select>
+            </div>
+            <div>
+              <label>リマインダー</label>
+              <select id="reminder">
+                <option value="0" selected>なし</option>
+                <option value="5">5分前</option>
+                <option value="10">10分前</option>
+                <option value="15">15分前</option>
+                <option value="30">30分前</option>
+                <option value="60">1時間前</option>
+                <option value="1440">1日前</option>
+              </select>
+            </div>
+
+            <div>
+              <label>繰り返し</label>
+              <select id="freq">
+                <option value="">なし</option>
+                <option value="DAILY">毎日</option>
+                <option value="WEEKLY">毎週</option>
+                <option value="WEEKLY:WEEKDAYS">平日のみ（毎週）</option>
+                <option value="MONTHLY">毎月</option>
+                <option value="YEARLY">毎年</option>
+              </select>
+            </div>
+            <div>
+              <label>回数(初期値1) or 終了日</label>
+              <div class="row" style="gap: 6px">
+                <input
+                  id="count"
+                  type="number"
+                  min="1"
+                  value="1"
+                  placeholder="回数（例：10）"
+                  style="max-width: 140px"
+                />
+                <span class="hint">または</span>
+                <input
+                  id="until"
+                  type="datetime-local"
+                  style="max-width: 220px"
+                />
+              </div>
+              <span class="hint">※ 片方だけ指定（両方空も可）</span>
+            </div>
+
+            <div class="full row" style="justify-content: flex-end; gap: 8px">
+              <button class="btn" id="sample">サンプルを入れる</button>
+              <button class="btn" id="clearForm">フォームをクリア</button>
+              <button class="btn btn-primary" id="add">予定を追加</button>
+            </div>
+          </div>
+
+          <hr />
+
+          <h3 style="margin: 0 0 8px">書き出しキュー</h3>
+          <div id="queue" class="list" aria-live="polite"></div>
+          <div class="row" style="margin-top: 8px">
+            <button class="btn btn-primary" id="download">
+              ICSをダウンロード
+            </button>
+            <button class="btn" id="clearQueue">キューを空にする</button>
+            <span class="hint"
+              >Outlook：ファイル → 開く/エクスポート → インポート/エクスポート →
+              iCalendar(.ics)。</span
+            >
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section">
+          <h3 style="margin-top: 0">注意点</h3>
+          <ul style="margin: 8px 0 0 18px; line-height: 1.6">
+            <li>
+              本ツールは
+              <b>UTC（Z）</b>
+              で書き出すため、Outlook側でローカル時間に自動変換される。
+            </li>
+            <li>
+              終日は
+              <code>DTSTART;VALUE=DATE</code
+              >/<code>DTEND;VALUE=DATE</code>（終了日は翌日）で出力。
+            </li>
+            <li>
+              繰り返しは RRULE を付与（COUNT か UNTIL のどちらか）。BYDAY
+              は開始日の曜日を自動設定。
+            </li>
+            <li>
+              文字は
+              iCalendarのルールでエスケープ（カンマ/セミコロン/バックスラッシュ/改行）。
+            </li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      (() => {
+        /* ===== Utilities ===== */
+        const qs = (s) => document.querySelector(s);
+        const pad = (n) => String(n).padStart(2, "0");
+
+        function toUTCString(dt) {
+          // YYYYMMDDTHHMMSSZ
+          const d = new Date(dt);
+          return (
+            d.getUTCFullYear() +
+            pad(d.getUTCMonth() + 1) +
+            pad(d.getUTCDate()) +
+            "T" +
+            pad(d.getUTCHours()) +
+            pad(d.getUTCMinutes()) +
+            pad(d.getUTCSeconds()) +
+            "Z"
+          );
+        }
+        function toDateOnly(dt) {
+          // YYYYMMDD（ローカル日付基準）
+          const d = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+          return d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate());
+        }
+        function addDays(d, days) {
+          const x = new Date(d);
+          x.setDate(x.getDate() + days);
+          return x;
+        }
+        function escapeText(t) {
+          return String(t || "")
+            .replace(/\\/g, "\\\\")
+            .replace(/;/g, "\\;")
+            .replace(/,/g, "\\,")
+            .replace(/\r?\n/g, "\\n");
+        }
+        function uuid() {
+          return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
+            /[xy]/g,
+            (c) => {
+              const r = (Math.random() * 16) | 0,
+                v = c === "x" ? r : (r & 0x3) | 0x8;
+              return v.toString(16);
+            }
+          );
+        }
+
+        /* ===== Queue state ===== */
+        const store = [];
+        const queueEl = qs("#queue");
+
+        function renderQueue() {
+          queueEl.innerHTML = "";
+          if (store.length === 0) {
+            const p = document.createElement("p");
+            p.className = "hint";
+            p.textContent =
+              "まだ予定はありません。フォームで追加してください。";
+            queueEl.appendChild(p);
+            return;
+          }
+          store.forEach((ev, i) => {
+            const div = document.createElement("div");
+            div.className = "item";
+            const timeText =
+              ev.allday === "yes"
+                ? `${ev.start.toLocaleDateString()}（終日）`
+                : `${ev.start.toLocaleString()} 〜 ${ev.end.toLocaleString()}`;
+            const rruleText = ev.rrule ? ` ／ 繰り返し: ${ev.rrule}` : "";
+            div.innerHTML = `
+        <div class="row">
+          <div style="min-width:0">
+            <div style="font-weight:700">${ev.summary || "(無題)"}</div>
+            <div class="hint" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${timeText}${
+              ev.location ? ` ／ ${ev.location}` : ""
+            }${rruleText}</div>
+          </div>
+          <div class="row">
+            <button class="btn" data-edit="${i}">編集</button>
+            <button class="btn" data-del="${i}">削除</button>
+          </div>
+        </div>
+        ${
+          ev.description
+            ? `<div style="white-space:pre-wrap;margin-top:6px">${ev.description}</div>`
+            : ""
+        }
+      `;
+            queueEl.appendChild(div);
+          });
+          queueEl.querySelectorAll("[data-del]").forEach((b) => {
+            b.addEventListener("click", () => {
+              const i = +b.getAttribute("data-del");
+              store.splice(i, 1);
+              renderQueue();
+            });
+          });
+          queueEl.querySelectorAll("[data-edit]").forEach((b) => {
+            b.addEventListener("click", () => {
+              const i = +b.getAttribute("data-edit");
+              loadToForm(store[i]);
+              store.splice(i, 1);
+              renderQueue();
+            });
+          });
+        }
+
+        /* ===== Form helpers ===== */
+        function getForm() {
+          const summary = qs("#summary").value.trim();
+          const location = qs("#location").value.trim();
+          const description = qs("#description").value;
+          const sRaw = qs("#start").value;
+          const eRaw = qs("#end").value;
+          const allday = qs("#allday").value;
+          const reminder = Number(qs("#reminder").value || 0);
+          const freq = qs("#freq").value;
+          const count = qs("#count").value ? Number(qs("#count").value) : null;
+          const untilRaw = qs("#until").value;
+
+          if (!summary) throw new Error("件名は必須です。");
+          if (!sRaw) throw new Error("開始日時を入力してください。");
+          let start = new Date(sRaw);
+          let end;
+
+          if (allday === "yes") {
+            // 終日は date のみ、終了は翌日
+            end = addDays(new Date(start), 1);
+          } else {
+            if (!eRaw) throw new Error("終了日時を入力してください。");
+            end = new Date(eRaw);
+            if (end <= start)
+              throw new Error("終了は開始より後にしてください。");
+          }
+
+          // RRULE
+          let rrule = "";
+          if (freq) {
+            const parts = [];
+            let baseFreq = freq;
+            if (freq === "WEEKLY:WEEKDAYS") {
+              baseFreq = "WEEKLY";
+              parts.push(`BYDAY=MO,TU,WE,TH,FR`);
+            }
+            parts.push(`FREQ=${baseFreq}`);
+
+            if (baseFreq === "WEEKLY" && freq !== "WEEKLY:WEEKDAYS") {
+              const byday = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"][
+                start.getDay()
+              ];
+              parts.push(`BYDAY=${byday}`);
+            }
+            if (count && count > 0) {
+              parts.push(`COUNT=${count}`);
+            } else if (untilRaw) {
+              const u = new Date(untilRaw);
+              parts.push(`UNTIL=${toUTCString(u)}`);
+            }
+            rrule = parts.join(";");
+          }
+
+          return {
+            summary,
+            location,
+            description,
+            start,
+            end,
+            allday,
+            reminder,
+            rrule,
+          };
+        }
+
+        function clearForm() {
+          [
+            "#summary",
+            "#location",
+            "#description",
+            "#start",
+            "#end",
+            "#count",
+            "#until",
+          ].forEach((id) => (qs(id).value = ""));
+          qs("#allday").value = "no";
+          qs("#reminder").value = "0";
+          qs("#freq").value = "";
+        }
+
+        function loadToForm(ev) {
+          qs("#summary").value = ev.summary || "";
+          qs("#location").value = ev.location || "";
+          qs("#description").value = ev.description || "";
+          qs("#allday").value = ev.allday || "no";
+          qs("#reminder").value = String(ev.reminder || 0);
+          qs("#freq").value = ev.rrule
+            ? ev.rrule.match(/FREQ=(\w+)/)?.[1] || ""
+            : "";
+          qs("#count").value = ev.rrule
+            ? ev.rrule.match(/COUNT=(\d+)/)?.[1] || ""
+            : "";
+          const until = ev.rrule
+            ? ev.rrule.match(/UNTIL=([0-9TZ]+)/)?.[1] || ""
+            : "";
+          if (until) {
+            // 20250101T090000Z → 2025-01-01T18:00（ローカル近似）
+            const d = new Date(until.replace("Z", ""));
+            qs("#until").value = new Date(
+              d.getTime() - d.getTimezoneOffset() * 60000
+            )
+              .toISOString()
+              .slice(0, 16);
+          } else {
+            qs("#until").value = "";
+          }
+          if (ev.allday === "yes") {
+            qs("#start").value = new Date(
+              ev.start.getTime() - ev.start.getTimezoneOffset() * 60000
+            )
+              .toISOString()
+              .slice(0, 16);
+            qs("#end").value = "";
+          } else {
+            qs("#start").value = new Date(
+              ev.start.getTime() - ev.start.getTimezoneOffset() * 60000
+            )
+              .toISOString()
+              .slice(0, 16);
+            qs("#end").value = new Date(
+              ev.end.getTime() - ev.end.getTimezoneOffset() * 60000
+            )
+              .toISOString()
+              .slice(0, 16);
+          }
+        }
+
+        /* ===== ICS builder ===== */
+        function buildICS(events) {
+          const nowUTC = toUTCString(new Date());
+          const lines = [
+            "BEGIN:VCALENDAR",
+            "PRODID:-//Outlook Import Builder//JA",
+            "VERSION:2.0",
+            "CALSCALE:GREGORIAN",
+            "METHOD:PUBLISH",
+          ];
+          for (const e of events) {
+            lines.push("BEGIN:VEVENT");
+            lines.push(`UID:${uuid()}`);
+            lines.push(`DTSTAMP:${nowUTC}`);
+            if (e.summary) lines.push(`SUMMARY:${escapeText(e.summary)}`);
+            if (e.location) lines.push(`LOCATION:${escapeText(e.location)}`);
+            if (e.description)
+              lines.push(`DESCRIPTION:${escapeText(e.description)}`);
+
+            if (e.allday === "yes") {
+              // 終日は DATE 指定。DTENDは翌日（非包含終端）
+              lines.push(`DTSTART;VALUE=DATE:${toDateOnly(e.start)}`);
+              lines.push(`DTEND;VALUE=DATE:${toDateOnly(e.end)}`);
+            } else {
+              lines.push(`DTSTART:${toUTCString(e.start)}`);
+              lines.push(`DTEND:${toUTCString(e.end)}`);
+            }
+
+            if (e.rrule) {
+              lines.push(`RRULE:${e.rrule}`);
+            }
+
+            if (e.reminder && e.reminder > 0) {
+              lines.push("BEGIN:VALARM");
+              lines.push(`TRIGGER:-PT${e.reminder}M`);
+              lines.push("ACTION:DISPLAY");
+              lines.push("DESCRIPTION:Reminder");
+              lines.push("END:VALARM");
+            }
+
+            lines.push("END:VEVENT");
+          }
+          lines.push("END:VCALENDAR");
+          return lines.join("\r\n");
+        }
+
+        /* ===== Wire up ===== */
+        qs("#add").addEventListener("click", () => {
+          try {
+            const ev = getForm();
+            store.push(ev);
+            renderQueue();
+            // フォームは残す派 → 消したい場合は下のコメントを外す
+            // clearForm();
+          } catch (err) {
+            alert(err.message || String(err));
+          }
+        });
+
+        qs("#download").addEventListener("click", () => {
+          if (store.length === 0) {
+            alert("書き出す予定がありません。");
+            return;
+          }
+          const ics = buildICS(store);
+          const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = "events.ics";
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => {
+            URL.revokeObjectURL(a.href);
+            a.remove();
+          }, 500);
+        });
+
+        qs("#clearQueue").addEventListener("click", () => {
+          store.splice(0, store.length);
+          renderQueue();
+        });
+
+        qs("#clearForm").addEventListener("click", clearForm);
+
+        qs("#sample").addEventListener("click", () => {
+          clearForm();
+          qs("#summary").value = "チーム定例";
+          qs("#location").value = "渋谷 第1会議室";
+          qs("#description").value = "毎週の進捗共有と課題確認";
+          const now = new Date();
+          now.setMinutes(0, 0, 0);
+          const nextHour = new Date(now.getTime() + 60 * 60000);
+          qs("#start").value = new Date(
+            now.getTime() - now.getTimezoneOffset() * 60000
+          )
+            .toISOString()
+            .slice(0, 16);
+          qs("#end").value = new Date(
+            nextHour.getTime() - nextHour.getTimezoneOffset() * 60000
+          )
+            .toISOString()
+            .slice(0, 16);
+          qs("#allday").value = "no";
+          qs("#reminder").value = "15";
+          qs("#freq").value = "WEEKLY";
+          qs("#count").value = "10";
+        });
+
+        // 初期表示
+        renderQueue();
+      })();
+    </script>
+  </body>
+</html>
