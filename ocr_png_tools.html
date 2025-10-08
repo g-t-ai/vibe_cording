@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PNG OCR & PDF変換（丸数字変換＋スペース除去対応）</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        background: #0b1020;
+        color: #e8ecff;
+      }
+      header {
+        background: #10173b;
+        padding: 16px;
+        border-bottom: 1px solid #2b356f;
+      }
+      h1 {
+        margin: 0;
+        font-size: 18px;
+        color: #cbd4ff;
+      }
+      .wrap {
+        display: grid;
+        grid-template-columns: 360px 1fr;
+        gap: 16px;
+        padding: 16px;
+      }
+      .card {
+        background: #141b3d;
+        border-radius: 12px;
+        border: 1px solid #2b356f;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+      }
+      .box {
+        padding: 16px;
+      }
+      .drop {
+        border: 1px dashed #3a4b96;
+        border-radius: 10px;
+        padding: 16px;
+        text-align: center;
+        color: #a7b2ef;
+        background: #10163b;
+      }
+      .drop.drag {
+        background: #182054;
+        border-color: #6f84ff;
+      }
+      .btn {
+        background: #1a255a;
+        border: 1px solid #40519a;
+        color: #e8ecff;
+        border-radius: 8px;
+        padding: 10px 14px;
+        cursor: pointer;
+        font-weight: 600;
+        margin-right: 6px;
+      }
+      .btn:hover {
+        filter: brightness(1.1);
+      }
+      .preview-inner {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 8px;
+        padding: 10px;
+      }
+      .thumb {
+        border: 1px solid #334289;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #0d1330;
+      }
+      .thumb img {
+        width: 100%;
+        height: 120px;
+        object-fit: contain;
+        display: block;
+      }
+      textarea {
+        width: 100%;
+        height: 400px;
+        background: #0d1330;
+        color: #e8ecff;
+        border: 0;
+        border-radius: 0 0 12px 12px;
+        padding: 12px;
+        resize: vertical;
+      }
+      .panel-title {
+        padding: 10px 14px;
+        border-bottom: 1px solid #2b356f;
+        font-size: 13px;
+        color: #9aa4d6;
+      }
+      .status {
+        font-size: 13px;
+        color: #a7b2ef;
+        margin-top: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <header><h1>PNG OCRツール（丸数字変換＋スペース除去対応）</h1></header>
+    <div class="wrap">
+      <div class="card box">
+        <div>
+          <label class="btn" for="fileInput">ファイルを選ぶ</label>
+          <input
+            id="fileInput"
+            type="file"
+            accept="image/png"
+            multiple
+            style="display: none"
+          />
+          <button id="btnOcr" class="btn">OCRして抽出</button>
+          <button id="btnSaveTxt" class="btn">TXT保存</button>
+          <button id="btnPdf" class="btn">PDF変換</button>
+        </div>
+        <div id="dropzone" class="drop">ここにPNGをドラッグ＆ドロップ</div>
+        <div class="status" id="status">準備OK</div>
+      </div>
+      <div class="card">
+        <div class="panel-title">プレビュー</div>
+        <div id="preview" class="preview-inner"></div>
+        <div class="panel-title">抽出テキスト</div>
+        <textarea
+          id="output"
+          placeholder="ここにOCR結果が表示されます"
+        ></textarea>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script>
+      const files = [];
+      const previewEl = document.getElementById("preview");
+      const outputEl = document.getElementById("output");
+      const statusEl = document.getElementById("status");
+      const dropzone = document.getElementById("dropzone");
+
+      // ファイル追加
+      function addFiles(list) {
+        for (const f of list) {
+          if (!f.type.includes("image/png")) continue;
+          files.push(f);
+          const url = URL.createObjectURL(f);
+          const div = document.createElement("div");
+          div.className = "thumb";
+          div.innerHTML = `<img src="${url}" alt="">`;
+          previewEl.appendChild(div);
+        }
+        statusEl.textContent = `${files.length}枚の画像を追加しました`;
+      }
+      document
+        .getElementById("fileInput")
+        .addEventListener("change", (e) => addFiles(e.target.files));
+      dropzone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropzone.classList.add("drag");
+      });
+      dropzone.addEventListener("dragleave", (e) =>
+        dropzone.classList.remove("drag")
+      );
+      dropzone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropzone.classList.remove("drag");
+        addFiles(e.dataTransfer.files);
+      });
+
+      // --- テキスト整形（丸数字変換＋スペース削除） ---
+      function cleanJapaneseText(text) {
+        const maruMap = {
+          "①": "1",
+          "②": "2",
+          "③": "3",
+          "④": "4",
+          "⑤": "5",
+          "⑥": "6",
+          "⑦": "7",
+          "⑧": "8",
+          "⑨": "9",
+          "⑩": "10",
+          "⑪": "11",
+          "⑫": "12",
+          "⑬": "13",
+          "⑭": "14",
+          "⑮": "15",
+          "⑯": "16",
+          "⑰": "17",
+          "⑱": "18",
+          "⑲": "19",
+          "⑳": "20",
+          "㉑": "21",
+          "㉒": "22",
+          "㉓": "23",
+          "㉔": "24",
+          "㉕": "25",
+          "㉖": "26",
+          "㉗": "27",
+          "㉘": "28",
+          "㉙": "29",
+          "㉚": "30",
+        };
+        text = text.replace(
+          /[①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳㉑㉒㉓㉔㉕㉖㉗㉘㉙㉚]/g,
+          (m) => maruMap[m] || m
+        );
+        text = text.replace(
+          /([ぁ-んァ-ヶ一-龯])\s+([ぁ-んァ-ヶ一-龯])/g,
+          "$1$2"
+        );
+        text = text.replace(/\s{2,}/g, " ");
+        return text.trim();
+      }
+
+      // --- OCR ---
+      async function runOCR() {
+        if (!files.length) {
+          statusEl.textContent = "PNGを追加してください";
+          return;
+        }
+        statusEl.textContent = "OCR実行中...";
+        outputEl.value = "";
+        const lang = "jpn+eng";
+        const langPath = "https://tessdata.projectnaptha.com/4.0.0";
+        let textAll = "";
+        for (let i = 0; i < files.length; i++) {
+          const f = files[i];
+          statusEl.textContent = `${i + 1}/${files.length}枚目を解析中...`;
+          const { data } = await Tesseract.recognize(f, lang, { langPath });
+          let text = cleanJapaneseText(data.text || "");
+          textAll += (files.length > 1 ? `[${f.name}]\n` : "") + text + "\n\n";
+        }
+        outputEl.value = textAll.trim();
+        statusEl.textContent = "OCR完了。テキストが抽出されました。";
+      }
+      document.getElementById("btnOcr").addEventListener("click", runOCR);
+
+      // --- TXT保存 ---
+      document.getElementById("btnSaveTxt").addEventListener("click", () => {
+        const blob = new Blob([outputEl.value], {
+          type: "text/plain;charset=utf-8",
+        });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "ocr_result.txt";
+        a.click();
+        URL.revokeObjectURL(a.href);
+      });
+
+      // --- PDF変換 ---
+      document.getElementById("btnPdf").addEventListener("click", async () => {
+        if (!files.length) {
+          statusEl.textContent = "PNGを追加してください";
+          return;
+        }
+        statusEl.textContent = "PDF作成中...";
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ unit: "pt", compress: true });
+        for (let i = 0; i < files.length; i++) {
+          const imgData = await fileToDataURL(files[i]);
+          const { width, height } = await getImageSize(imgData);
+          const pageW = 595.28,
+            pageH = 841.89,
+            margin = 24;
+          const maxW = pageW - margin * 2,
+            maxH = pageH - margin * 2;
+          const scale = Math.min(maxW / width, maxH / height);
+          const w = width * scale,
+            h = height * scale;
+          const x = (pageW - w) / 2,
+            y = (pageH - h) / 2;
+          if (i > 0) pdf.addPage();
+          pdf.addImage(imgData, "PNG", x, y, w, h, undefined, "FAST");
+        }
+        pdf.save("images.pdf");
+        statusEl.textContent = "PDF保存完了";
+      });
+      function fileToDataURL(file) {
+        return new Promise((res, rej) => {
+          const fr = new FileReader();
+          fr.onload = () => res(fr.result);
+          fr.onerror = rej;
+          fr.readAsDataURL(file);
+        });
+      }
+      function getImageSize(dataURL) {
+        return new Promise((res) => {
+          const img = new Image();
+          img.onload = () =>
+            res({ width: img.naturalWidth, height: img.naturalHeight });
+          img.src = dataURL;
+        });
+      }
+    </script>
+  </body>
+</html>
